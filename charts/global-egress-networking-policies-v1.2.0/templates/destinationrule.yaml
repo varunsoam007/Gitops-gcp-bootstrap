@@ -1,0 +1,71 @@
+{{- $networkPolicy := .Values.networkPolicy | default dict }}
+{{- $egressPolicy := get $networkPolicy "egress" | default dict }}
+{{- $selectedPolicies := get $egressPolicy "policyFromCatalogue" | default list }}
+{{- $catalogue := .Values.egressCatalogue | default dict }}
+
+{{- range $policyName := $selectedPolicies }}
+{{- if not (hasKey $catalogue $policyName) }}
+{{- fail (printf "egressCatalogue entry %q not found" $policyName) }}
+{{- end }}
+{{- $cfg := index $catalogue $policyName }}
+
+{{- $tlsEnabled := false }}
+{{- $tls := dict }}
+
+{{- if and $cfg.tls (kindIs "map" $cfg.tls) }}
+  {{- $tlsEnabled = true }}
+  {{- $tls = $cfg.tls }}
+{{- else }}
+  {{- $tlsMode := "" }}
+  {{- if hasKey $cfg "tlsOrigination" }}
+    {{- if kindIs "bool" $cfg.tlsOrigination }}
+      {{- if $cfg.tlsOrigination }}
+        {{- $tlsEnabled = true }}
+        {{- $tlsMode = "SIMPLE" }}
+      {{- end }}
+    {{- else if and (kindIs "string" $cfg.tlsOrigination) (ne (trim $cfg.tlsOrigination) "") }}
+      {{- if ne (upper (trim $cfg.tlsOrigination)) "DISABLE" }}
+        {{- $tlsEnabled = true }}
+        {{- $tlsMode = upper (trim $cfg.tlsOrigination) }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+
+  {{- if and (hasKey $cfg "tlsOriginationMode") (kindIs "string" $cfg.tlsOriginationMode) (ne (trim $cfg.tlsOriginationMode) "") }}
+    {{- $tlsMode = upper (trim $cfg.tlsOriginationMode) }}
+  {{- end }}
+
+  {{- if and $tlsEnabled (ne $tlsMode "") }}
+    {{- $tls = dict "mode" $tlsMode }}
+  {{- end }}
+{{- end }}
+
+{{- if and $tlsEnabled $cfg.hosts }}
+{{- $destinationRuleNamespace := default $.Release.Namespace $cfg.destinationRuleNamespace }}
+{{- range $host := $cfg.hosts }}
+{{- $baseName := printf "%s-%s" $policyName (include "egress.safeName" $host) }}
+{{- $drName := $baseName }}
+{{- if ne $destinationRuleNamespace $.Release.Namespace }}
+{{- $drName = printf "%s-%s" $.Release.Namespace $baseName }}
+{{- end }}
+
+---
+apiVersion: networking.istio.io/v1
+kind: DestinationRule
+metadata:
+  name: {{ $drName | trunc 63 | trimSuffix "-" }}
+  namespace: {{ $destinationRuleNamespace }}
+
+spec:
+  host: {{ $host | quote }}
+{{- if $cfg.destinationRuleExportTo }}
+  exportTo:
+{{- toYaml $cfg.destinationRuleExportTo | nindent 4 }}
+{{- end }}
+  trafficPolicy:
+    tls:
+{{- toYaml $tls | nindent 6 }}
+
+{{- end }}
+{{- end }}
+{{- end }}

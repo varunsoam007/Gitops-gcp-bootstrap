@@ -1,0 +1,6 @@
+apiVersion: v2
+appVersion: 0.1.0
+description: A Helm library chart for shared Testkube CRD templates
+name: testkube-crds
+type: library
+version: 0.1.0

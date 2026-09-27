@@ -1,0 +1,28 @@
+# Common Alloy configuration shared across all environments
+# Environment-specific settings should override these in their own values files
+
+# Private ACR for all images
+image:
+  registry: crpinthirdpartymgtintuks001.azurecr.io
+  repository: grafana/alloy
+
+configReloader:
+  image:
+    registry: crpinthirdpartymgtintuks001.azurecr.io
+    repository: prometheus-operator/prometheus-config-reloader
+
+# High priority for observability workloads
+controller:
+  priorityClassName: observability-critical
+  # Expose Alloy internal metrics for scraping by other Alloy replicas
+  # Required for: GrafanaAlloyServiceDown alert rule
+  podAnnotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "12345"
+    prometheus.io/path: "/metrics"
+  # Tolerate spot nodes
+  tolerations:
+    - effect: NoSchedule
+      key: kubernetes.azure.com/scalesetpriority
+      operator: Equal
+      value: spot

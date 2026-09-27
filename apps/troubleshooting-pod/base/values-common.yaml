@@ -1,0 +1,57 @@
+namespace:
+  name: troubleshooting-pod
+  labels:
+    app.kubernetes.io/name: troubleshooting-pod
+
+rbac:
+  enabled: false
+  roleName: troubleshooting-users
+  subjects: []
+
+
+  name: netshoot
+
+  image:
+    repository: crpinthirdpartymgtintuks001.azurecr.io/nicolaka/netshoot
+    tag: v0.15
+    pullPolicy: IfNotPresent
+
+  command:
+    - sleep
+    - infinity
+
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+
+  automountServiceAccountToken: false
+
+guardrails:
+  resourceQuota:
+    enabled: true
+    hard:
+      pods: "5"
+      requests.cpu: "2"
+      requests.memory: 4Gi
+      limits.memory: 8Gi
+
+  limitRange:
+    enabled: true
+    defaultRequest:
+      cpu: 50m
+      memory: 128Mi
+    default:
+      memory: 512Mi
+    max:
+      cpu: 500m
+      memory: 1Gi

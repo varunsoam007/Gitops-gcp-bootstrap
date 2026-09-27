@@ -1,0 +1,16 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+helmGlobals:
+  chartHome: ../../../../charts
+
+namespace: troubleshooting
+
+helmCharts:
+  - name: troubleshooting-pod-0.1.0
+    version: 0.1.0
+    releaseName: troubleshooting-pod
+    namespace: troubleshooting
+    additionalValuesFiles:
+      - ../../base/values-common.yaml
+      - values-additional.yaml

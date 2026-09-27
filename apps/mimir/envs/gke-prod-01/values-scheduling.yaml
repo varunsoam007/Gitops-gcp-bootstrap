@@ -1,0 +1,76 @@
+# Capacity placement for every chart-managed Mimir PodSpec in devm.
+
+alertmanager:
+  nodeSelector:
+    karpenter.sh/capacity-type: on-demand
+
+compactor:
+  nodeSelector:
+    karpenter.sh/capacity-type: on-demand
+
+distributor:
+  nodeSelector:
+    karpenter.sh/capacity-type: on-demand
+  affinity: null
+
+gateway:
+  nodeSelector:
+    karpenter.sh/capacity-type: on-demand
+
+ingester:
+  nodeSelector:
+    karpenter.sh/capacity-type: on-demand
+
+overrides_exporter:
+  nodeSelector:
+    karpenter.sh/capacity-type: on-demand
+
+querier:
+  nodeSelector:
+    karpenter.sh/capacity-type: on-demand
+  affinity: null
+
+query_frontend:
+  nodeSelector:
+    karpenter.sh/capacity-type: on-demand
+  affinity: null
+
+query_scheduler:
+  nodeSelector:
+    karpenter.sh/capacity-type: on-demand
+
+rollout_operator:
+  nodeSelector:
+    karpenter.sh/capacity-type: on-demand
+
+ruler:
+  nodeSelector:
+    karpenter.sh/capacity-type: on-demand
+
+store_gateway:
+  zoneAwareReplication:
+    zones:
+      - name: zone-a
+        nodeSelector:
+          karpenter.sh/capacity-type: on-demand
+        extraAffinity: {}
+        storageClass: null
+        noDownscale: false
+        downscaleLeader: null
+        prepareDownscale: true
+      - name: zone-b
+        nodeSelector:
+          karpenter.sh/capacity-type: on-demand
+        extraAffinity: {}
+        storageClass: null
+        noDownscale: false
+        downscaleLeader: null
+        prepareDownscale: true
+      - name: zone-c
+        nodeSelector:
+          karpenter.sh/capacity-type: on-demand
+        extraAffinity: {}
+        storageClass: null
+        noDownscale: false
+        downscaleLeader: null
+        prepareDownscale: true

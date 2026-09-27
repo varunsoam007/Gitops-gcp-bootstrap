@@ -1,0 +1,284 @@
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-options: ServerSideApply=true
+  name: kubernetes-logs-explorer
+  labels:
+    dashboards: "grafana"
+spec:
+  instanceSelector:
+    matchLabels:
+      dashboards: "grafana"
+  folder: "Logging"
+  json: |
+    {
+      "annotations": {
+        "list": []
+      },
+      "description": "Explore Kubernetes logs by namespace, pod, and container",
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 0,
+      "links": [],
+      "liveNow": false,
+      "panels": [
+        {
+          "collapsed": false,
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+          "id": 1,
+          "panels": [],
+          "title": "Log Volume",
+          "type": "row"
+        },
+        {
+          "datasource": { "type": "loki", "uid": "${lokidatasource}" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": {
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "bars",
+                "fillOpacity": 50,
+                "gradientMode": "none",
+                "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": { "type": "linear" },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": { "group": "A", "mode": "normal" },
+                "thresholdsStyle": { "mode": "off" }
+              },
+              "mappings": [],
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 6, "w": 24, "x": 0, "y": 1 },
+          "id": 2,
+          "options": {
+            "legend": { "calcs": ["sum"], "displayMode": "table", "placement": "right", "showLegend": true },
+            "tooltip": { "mode": "multi", "sort": "desc" }
+          },
+          "pluginVersion": "10.0.0",
+          "targets": [
+            {
+              "datasource": { "type": "loki", "uid": "${lokidatasource}" },
+              "expr": "sum by (namespace) (count_over_time({namespace=~\"$namespace\", pod=~\"$pod\"}[$__interval]))",
+              "legendFormat": "{{namespace}}",
+              "refId": "A"
+            }
+          ],
+          "title": "Log Volume by Namespace",
+          "type": "timeseries"
+        },
+        {
+          "collapsed": false,
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 7 },
+          "id": 3,
+          "panels": [],
+          "title": "Log Stream",
+          "type": "row"
+        },
+        {
+          "datasource": { "type": "loki", "uid": "${lokidatasource}" },
+          "gridPos": { "h": 20, "w": 24, "x": 0, "y": 8 },
+          "id": 4,
+          "options": {
+            "dedupStrategy": "none",
+            "enableLogDetails": true,
+            "prettifyLogMessage": false,
+            "showCommonLabels": false,
+            "showLabels": false,
+            "showTime": true,
+            "sortOrder": "Descending",
+            "wrapLogMessage": true
+          },
+          "pluginVersion": "10.0.0",
+          "targets": [
+            {
+              "datasource": { "type": "loki", "uid": "${lokidatasource}" },
+              "expr": "{namespace=~\"$namespace\", pod=~\"$pod\", container=~\"$container\"} |~ \"$search\"",
+              "refId": "A"
+            }
+          ],
+          "title": "Logs",
+          "type": "logs"
+        },
+        {
+          "collapsed": true,
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 28 },
+          "id": 5,
+          "panels": [
+            {
+              "datasource": { "type": "loki", "uid": "${lokidatasource}" },
+              "fieldConfig": {
+                "defaults": {
+                  "color": { "mode": "palette-classic" },
+                  "custom": {
+                    "axisCenteredZero": false,
+                    "axisColorMode": "text",
+                    "axisLabel": "",
+                    "axisPlacement": "auto",
+                    "barAlignment": 0,
+                    "drawStyle": "bars",
+                    "fillOpacity": 50,
+                    "gradientMode": "none",
+                    "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+                    "lineInterpolation": "linear",
+                    "lineWidth": 1,
+                    "pointSize": 5,
+                    "scaleDistribution": { "type": "linear" },
+                    "showPoints": "never",
+                    "spanNulls": false,
+                    "stacking": { "group": "A", "mode": "normal" },
+                    "thresholdsStyle": { "mode": "off" }
+                  },
+                  "mappings": [],
+                  "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+                  "unit": "short"
+                },
+                "overrides": [
+                  {
+                    "matcher": { "id": "byName", "options": "error" },
+                    "properties": [{ "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }]
+                  },
+                  {
+                    "matcher": { "id": "byName", "options": "warn" },
+                    "properties": [{ "id": "color", "value": { "fixedColor": "yellow", "mode": "fixed" } }]
+                  },
+                  {
+                    "matcher": { "id": "byName", "options": "info" },
+                    "properties": [{ "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }]
+                  },
+                  {
+                    "matcher": { "id": "byName", "options": "debug" },
+                    "properties": [{ "id": "color", "value": { "fixedColor": "blue", "mode": "fixed" } }]
+                  }
+                ]
+              },
+              "gridPos": { "h": 8, "w": 24, "x": 0, "y": 29 },
+              "id": 6,
+              "options": {
+                "legend": { "calcs": ["sum"], "displayMode": "table", "placement": "right", "showLegend": true },
+                "tooltip": { "mode": "multi", "sort": "desc" }
+              },
+              "pluginVersion": "10.0.0",
+              "targets": [
+                {
+                  "datasource": { "type": "loki", "uid": "${lokidatasource}" },
+                  "expr": "sum by (level) (count_over_time({namespace=~\"$namespace\", pod=~\"$pod\"} | json | level != \"\" [$__interval]))",
+                  "legendFormat": "{{level}}",
+                  "refId": "A"
+                }
+              ],
+              "title": "Log Levels Over Time",
+              "type": "timeseries"
+            }
+          ],
+          "title": "Log Levels (JSON logs only)",
+          "type": "row"
+        }
+      ],
+      "refresh": "30s",
+      "schemaVersion": 38,
+      "style": "dark",
+      "tags": ["loki", "logs", "kubernetes"],
+      "templating": {
+        "list": [
+          {
+            "current": { "selected": false, "text": "Loki", "value": "loki" },
+            "hide": 0,
+            "includeAll": false,
+            "label": "Loki Datasource",
+            "multi": false,
+            "name": "lokidatasource",
+            "options": [],
+            "query": "loki",
+            "queryValue": "",
+            "refresh": 1,
+            "regex": "",
+            "skipUrlSync": false,
+            "type": "datasource"
+          },
+          {
+            "allValue": ".+",
+            "current": { "selected": true, "text": ["All"], "value": ["$__all"] },
+            "datasource": { "type": "loki", "uid": "${lokidatasource}" },
+            "definition": "label_values(namespace)",
+            "hide": 0,
+            "includeAll": true,
+            "label": "Namespace",
+            "multi": true,
+            "name": "namespace",
+            "options": [],
+            "query": "label_values(namespace)",
+            "refresh": 2,
+            "regex": "",
+            "skipUrlSync": false,
+            "sort": 1,
+            "type": "query"
+          },
+          {
+            "allValue": ".+",
+            "current": { "selected": true, "text": ["All"], "value": ["$__all"] },
+            "datasource": { "type": "loki", "uid": "${lokidatasource}" },
+            "definition": "label_values({namespace=~\"$namespace\"}, pod)",
+            "hide": 0,
+            "includeAll": true,
+            "label": "Pod",
+            "multi": true,
+            "name": "pod",
+            "options": [],
+            "query": "label_values({namespace=~\"$namespace\"}, pod)",
+            "refresh": 2,
+            "regex": "",
+            "skipUrlSync": false,
+            "sort": 1,
+            "type": "query"
+          },
+          {
+            "allValue": ".+",
+            "current": { "selected": true, "text": ["All"], "value": ["$__all"] },
+            "datasource": { "type": "loki", "uid": "${lokidatasource}" },
+            "definition": "label_values({namespace=~\"$namespace\", pod=~\"$pod\"}, container)",
+            "hide": 0,
+            "includeAll": true,
+            "label": "Container",
+            "multi": true,
+            "name": "container",
+            "options": [],
+            "query": "label_values({namespace=~\"$namespace\", pod=~\"$pod\"}, container)",
+            "refresh": 2,
+            "regex": "",
+            "skipUrlSync": false,
+            "sort": 1,
+            "type": "query"
+          },
+          {
+            "current": { "selected": false, "text": "", "value": "" },
+            "hide": 0,
+            "label": "Search",
+            "name": "search",
+            "options": [{ "selected": true, "text": "", "value": "" }],
+            "query": "",
+            "skipUrlSync": false,
+            "type": "textbox"
+          }
+        ]
+      },
+      "time": { "from": "now-1h", "to": "now" },
+      "timepicker": {},
+      "timezone": "",
+      "title": "Kubernetes Logs Explorer",
+      "uid": "k8s-logs-explorer",
+      "version": 1,
+      "weekStart": ""
+    }

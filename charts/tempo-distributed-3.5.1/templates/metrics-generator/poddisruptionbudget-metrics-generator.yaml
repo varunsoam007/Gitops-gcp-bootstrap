@@ -1,0 +1,20 @@
+{{- if .Values.metricsGenerator.enabled }}
+{{- if and (gt (int .Values.metricsGenerator.replicas) 1) .Values.metricsGenerator.podDisruptionBudget.enabled }}
+{{ $dict := dict "ctx" . "component" "metrics-generator" "memberlist" true }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "tempo.resourceName" $dict }}
+  labels:
+    {{- include "tempo.labels" $dict | nindent 4 }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "tempo.selectorLabels" $dict | nindent 6 }}
+  maxUnavailable: {{ .Values.metricsGenerator.maxUnavailable }}
+  {{- with .Values.metricsGenerator.podDisruptionBudget.unhealthyPodEvictionPolicy }}
+  unhealthyPodEvictionPolicy: {{ . }}
+  {{- end }}
+{{- end }}
+{{- end }}

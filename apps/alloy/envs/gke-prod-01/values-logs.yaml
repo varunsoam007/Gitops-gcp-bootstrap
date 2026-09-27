@@ -1,0 +1,244 @@
+# Grafana Alloy configuration for devm-k01 - LOG COLLECTION AND LOKI PUSH INGEST
+# Lightweight DaemonSet that collects pod logs and accepts Loki push traffic
+# Metrics scraping is handled by a separate Deployment (alloy-metrics)
+#
+# Uses loki.source.file instead of loki.source.kubernetes to avoid memory leak
+# where tailers for deleted pods are never garbage collected. loki.source.file
+# reads directly from /var/log/pods/* and has proper cleanup via position file.
+
+# Deploy as DaemonSet to collect logs from all nodes
+controller:
+  type: daemonset
+  # High priority to ensure collection runs on all nodes
+  priorityClassName: observability-critical
+  nodeSelector:
+    karpenter.sh/capacity-type: on-demand
+  # Tolerate spot nodes
+  tolerations:
+    - effect: NoSchedule
+      key: kubernetes.azure.com/scalesetpriority
+      operator: Equal
+      value: spot
+  # Extra volumes for persistent storage
+  volumes:
+    extra:
+      - name: alloy-data
+        hostPath:
+          path: /var/lib/alloy-logs
+          type: DirectoryOrCreate
+
+# Internal route for Loki push ingestion from trusted callers outside the cluster.
+# Exposes the Loki push API at https://alloy-logs.k01.devm.corp.pinpetuk.net/loki/api/v1/push
+extraObjects:
+  - apiVersion: gateway.networking.k8s.io/v1
+    kind: HTTPRoute
+    metadata:
+      name: alloy-logs
+      namespace: alloy
+      annotations:
+        argocd.argoproj.io/sync-options: ServerSideApply=true
+    spec:
+      parentRefs:
+        - name: shared-gateway-int
+          namespace: gateway-api
+          group: gateway.networking.k8s.io
+          kind: Gateway
+      hostnames:
+        - alloy-logs.k01.devm.corp.pinpetuk.net
+      rules:
+        - matches:
+            - path:
+                type: PathPrefix
+                value: /loki/api/v1/push
+            - path:
+                type: PathPrefix
+                value: /api/v1/push
+          backendRefs:
+            - group: ""
+              kind: Service
+              name: alloy-logs
+              port: 3100
+              weight: 1
+
+# Resource limits - reduced since loki.source.file has stable memory usage
+# Config reloader sidecar resources (VPA upper: 50Mi)
+configReloader:
+  resources:
+    requests:
+      cpu: 11m
+      memory: 50Mi
+    limits:
+      cpu: 11m
+      memory: 50Mi
+
+alloy:
+  # Persistent storage path for positions file (survives pod restarts)
+  storagePath: /var/lib/alloy-logs
+
+  extraPorts:
+    - name: loki-push-http
+      port: 3100
+      targetPort: 3100
+      protocol: TCP
+
+  resources:
+    requests:
+      cpu: 23m
+      memory: 194Mi
+    limits:
+      memory: 216Mi
+
+  # Mount host paths for log collection
+  mounts:
+    varlog: true
+    # Mount the persistent storage for positions
+    extra:
+      - name: alloy-data
+        mountPath: /var/lib/alloy-logs
+
+  # Alloy River configuration - LOGS ONLY
+  configMap:
+    create: true
+    content: |
+      // Logging configuration
+      logging {
+        level  = "info"
+        format = "logfmt"
+      }
+
+      // ===========================================
+      // Kubernetes Pod Log Collection (File-based)
+      // ===========================================
+      // Using loki.source.file to read logs directly from /var/log/pods/*
+      // This avoids the memory leak in loki.source.kubernetes where tailers
+      // for deleted pods are never garbage collected.
+      //
+      // Benefits:
+      // - Stable memory footprint (~150-200Mi vs unbounded growth)
+      // - Proper cleanup when pods are deleted (position file only)
+      // - Direct file reading, no Kubernetes API watches per container
+
+      // Accept Loki push API traffic from trusted internal callers and
+      // forward it to the same Loki backend as node-local pod logs.
+      loki.source.api "push_api" {
+        http {
+          listen_address = "0.0.0.0"
+          listen_port    = 3100
+        }
+
+        forward_to = [loki.write.loki.receiver]
+      }
+
+      // Discover all pod log files on this node
+      local.file_match "pods" {
+        path_targets = [{
+          __path__ = "/var/log/pods/*/*/*.log",
+        }]
+        sync_period = "10s"
+      }
+
+      // Read and tail discovered log files
+      loki.source.file "pods" {
+        targets    = local.file_match.pods.targets
+        forward_to = [loki.process.pods.receiver]
+
+        // Persistent position tracking (survives pod restarts)
+        file_watch {
+          min_poll_frequency = "250ms"
+          max_poll_frequency = "250ms"
+        }
+      }
+
+      // Process logs: extract labels from path, parse JSON, etc.
+      loki.process "pods" {
+        forward_to = [loki.write.loki.receiver]
+
+        // ===========================================
+        // Extract labels from log file path
+        // ===========================================
+        // Path format: /var/log/pods/<namespace>_<pod>_<uid>/<container>/<restart>.log
+        // Example: /var/log/pods/kube-system_coredns-7c65d6cfc9-abc12_a1b2c3d4/coredns/0.log
+
+        stage.regex {
+          expression = "/var/log/pods/(?P<namespace>[^_]+)_(?P<pod>[^_]+)_(?P<uid>[^/]+)/(?P<container>[^/]+)/.*\\.log"
+          source     = "filename"
+        }
+
+        stage.labels {
+          values = {
+            namespace = "",
+            pod       = "",
+            container = "",
+          }
+        }
+
+        // Try to parse JSON logs
+        stage.json {
+          expressions = {
+            level   = "level",
+            msg     = "msg",
+            message = "message",
+            ts      = "ts",
+            time    = "time",
+          }
+        }
+
+        // Set log level from parsed JSON
+        stage.labels {
+          values = {
+            level = "",
+          }
+        }
+
+        // Extract timestamp if present
+        stage.timestamp {
+          source = "ts"
+          format = "RFC3339"
+        }
+
+        // Add static labels
+        stage.static_labels {
+          values = {
+            cluster = "devm-k01",
+          }
+        }
+
+        // ===========================================
+        // Log Sampling for Noisy Namespaces
+        // ===========================================
+        // Sample info-level logs from high-volume namespaces to reduce
+        // Loki ingestion. Keep only 10% of info logs (90% reduction).
+        // Warn/error logs are always kept.
+
+        stage.match {
+          selector = "{namespace=~\"alloy|cnpg-shared|cnpg-system|gateway-api|istio-system|loki|mimir\"}"
+
+          // Only sample info-level logs, keep all warn/error
+          stage.match {
+            selector = "{level=\"info\"}"
+
+            stage.sampling {
+              rate = 0.1
+              drop_counter_reason = "info_log_sampling_noisy_namespaces"
+            }
+          }
+        }
+      }
+
+      // Push logs to Loki
+      loki.write "loki" {
+        endpoint {
+          url = "http://loki-distributor.loki.svc.cluster.local:3100/loki/api/v1/push"
+
+          // Tenant ID for multi-tenant Loki
+          tenant_id = "devm-k01"
+
+          // Batching configuration
+          batch_size  = "1MiB"
+          batch_wait  = "1s"
+        }
+
+        external_labels = {
+          cluster = "devm-k01",
+        }
+      }

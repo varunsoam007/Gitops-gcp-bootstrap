@@ -1,0 +1,61 @@
+{{- if .Values.externalGateway.enabled }}
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: {{ .Values.externalGateway.name }}
+  namespace: {{ .Values.namespace.name }}
+  annotations:
+    service.beta.kubernetes.io/azure-load-balancer-internal: "{{ .Values.externalGateway.loadBalancer.internal }}"
+    service.beta.kubernetes.io/azure-load-balancer-ipv4: {{ .Values.externalGateway.loadBalancer.ipv4 }}
+    service.beta.kubernetes.io/azure-load-balancer-health-probe-request-path: {{ .Values.externalGateway.loadBalancer.healthProbePath }}
+    service.beta.kubernetes.io/port_80_health-probe_protocol: http
+    service.beta.kubernetes.io/port_80_health-probe_port: {{ .Values.externalGateway.loadBalancer.healthProbePort | quote }}
+    service.beta.kubernetes.io/port_443_health-probe_protocol: http
+    service.beta.kubernetes.io/port_443_health-probe_port: {{ .Values.externalGateway.loadBalancer.healthProbePort | quote }}
+    service.beta.kubernetes.io/azure-load-balancer-resource-group: {{ .Values.externalGateway.loadBalancer.resourceGroup }}
+    service.beta.kubernetes.io/azure-load-balancer-internal-subnet: {{ .Values.externalGateway.loadBalancer.subnet }}
+    external-dns.alpha.kubernetes.io/target: {{ .Values.externalGateway.externalDns.target }}
+{{- with .Values.externalGateway.annotations }}
+{{- range $key, $value := . }}
+    {{ $key }}: {{ $value | quote }}
+{{- end }}
+{{- end }}
+spec:
+  gatewayClassName: {{ .Values.externalGateway.className }}
+  infrastructure:
+    parametersRef:
+      group: ""
+      kind: ConfigMap
+      name: {{ .Values.gatewayOptions.external.name }}
+  listeners:
+  - name: http
+    port: 80
+    protocol: HTTP
+    {{- if .Values.externalGateway.hostname }}
+    hostname: {{ .Values.externalGateway.hostname | quote }}
+    {{- end }}
+    allowedRoutes:
+      namespaces:
+        from: Selector
+        selector:
+          matchLabels:
+            allow-shared-gateway-ext-access: "true"
+  - name: https
+    port: 443
+    protocol: HTTPS
+    {{- if .Values.externalGateway.hostname }}
+    hostname: {{ .Values.externalGateway.hostname | quote }}
+    {{- end }}
+    tls:
+      mode: Terminate
+      certificateRefs:
+      - group: ''
+        kind: Secret
+        name: {{ .Values.externalGateway.tls.certificateRef }}
+    allowedRoutes:
+      namespaces:
+        from: Selector
+        selector:
+          matchLabels:
+            allow-shared-gateway-ext-access: "true"
+{{- end }}

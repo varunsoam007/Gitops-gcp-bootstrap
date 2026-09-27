@@ -1,0 +1,10 @@
+nodeSelector:
+  karpenter.sh/capacity-type: on-demand
+
+resources:
+  requests:
+    cpu: 15m
+    memory: 309Mi
+  limits:
+    cpu: 15m
+    memory: 310Mi

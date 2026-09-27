@@ -1,0 +1,69 @@
+# Goldilocks - VPA recommendation dashboard
+# Deploys VPA recommender (sub-chart) + controller + dashboard
+# Recommendation-only mode: VPA updater is OFF so pods are never auto-resized
+
+# -- VPA sub-chart: only recommender, no updater/admission controller
+vpa:
+  enabled: true
+  updater:
+    enabled: false
+  admissionController:
+    enabled: false
+  recommender:
+    enabled: true
+    nodeSelector:
+      karpenter.sh/capacity-type: on-demand
+    resources:
+      requests:
+        cpu: 15m
+        memory: 138Mi
+      limits:
+        cpu: 15m
+        memory: 139Mi
+
+# -- We already have metrics-server on the cluster
+metrics-server:
+  enabled: false
+
+# -- Controller watches namespaces and creates VPA objects
+controller:
+  enabled: true
+  nodeSelector:
+    karpenter.sh/capacity-type: on-demand
+  flags:
+    on-by-default: "true"
+  resources:
+    requests:
+      cpu: 49m
+      memory: 105Mi
+    limits:
+      cpu: 324m
+      memory: 106Mi
+
+# -- Dashboard for viewing recommendations
+dashboard:
+  enabled: true
+  nodeSelector:
+    karpenter.sh/capacity-type: on-demand
+  replicaCount: 1
+  flags:
+    on-by-default: "true"
+  excludeContainers: "istio-proxy,linkerd-proxy"
+  resources:
+    requests:
+      cpu: 15m
+      memory: 138Mi
+    limits:
+      cpu: 15m
+      memory: 139Mi
+  httpRoute:
+    enabled: true
+    annotations:
+      argocd.argoproj.io/sync-options: ServerSideApply=true
+    parentRefs:
+      - name: shared-gateway-int
+        namespace: gateway-api
+        group: gateway.networking.k8s.io
+        kind: Gateway
+    hostnames:
+      - goldilocks.k01.devm.corp.pinpetuk.net

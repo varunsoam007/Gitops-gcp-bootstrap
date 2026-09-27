@@ -1,0 +1,62 @@
+{{ $dict := dict "ctx" . "component" "query-frontend" }}
+{{/*
+Build extraContainers by optionally prepending the tempo-query sidecar when
+queryFrontend.query.enabled is true, then appending any user-defined extraContainers.
+*/}}
+{{- $extraContainers := list }}
+{{- if .Values.queryFrontend.query.enabled }}
+  {{- $queryContainer := dict
+    "name" "tempo-query"
+    "image" (include "tempo.queryImage" .)
+    "imagePullPolicy" .Values.tempo.image.pullPolicy
+    "args" (concat (list "-config=/conf/tempo.yaml") (.Values.queryFrontend.query.extraArgs | default list) (.Values.global.extraArgs | default list))
+    "ports" (list
+      (dict "containerPort" (.Values.queryFrontend.service.port | int) "name" "jaeger-ui")
+      (dict "containerPort" 16687 "name" "jaeger-metrics"))
+    "resources" .Values.queryFrontend.query.resources
+    "volumeMounts" (concat
+      (list (dict "mountPath" "/conf" "name" "config"))
+      (.Values.queryFrontend.query.extraVolumeMounts | default list))
+  }}
+  {{- if or .Values.global.extraEnv .Values.queryFrontend.query.extraEnv }}
+    {{- $env := concat (.Values.global.extraEnv | default list) (.Values.queryFrontend.query.extraEnv | default list) }}
+    {{- $queryContainer = merge $queryContainer (dict "env" $env) }}
+  {{- end }}
+  {{- if or .Values.global.extraEnvFrom .Values.queryFrontend.query.extraEnvFrom }}
+    {{- $envFrom := concat (.Values.global.extraEnvFrom | default list) (.Values.queryFrontend.query.extraEnvFrom | default list) }}
+    {{- $queryContainer = merge $queryContainer (dict "envFrom" $envFrom) }}
+  {{- end }}
+  {{- if .Values.tempo.securityContext }}
+    {{- $queryContainer = merge $queryContainer (dict "securityContext" .Values.tempo.securityContext) }}
+  {{- end }}
+  {{- $extraContainers = append $extraContainers $queryContainer }}
+{{- end }}
+{{- $extraContainers = concat $extraContainers (.Values.queryFrontend.extraContainers | default list) }}
+{{/* Merge computed extraContainers into a copy of the queryFrontend component dict */}}
+{{- $component := merge (dict "extraContainers" $extraContainers) .Values.queryFrontend }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "tempo.resourceName" $dict }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "tempo.labels" $dict | nindent 4 }}
+  {{- with .Values.queryFrontend.annotations }}
+  annotations:
+  {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  minReadySeconds: {{ .Values.queryFrontend.minReadySeconds }}
+{{- if not .Values.queryFrontend.autoscaling.enabled }}
+  replicas: {{ .Values.queryFrontend.replicas }}
+{{- end }}
+  revisionHistoryLimit: {{ .Values.tempo.revisionHistoryLimit }}
+  selector:
+    matchLabels:
+      {{- include "tempo.selectorLabels" $dict | nindent 6 }}
+  strategy:
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  template:
+    {{- include "tempo.podTemplate" (dict "ctx" $ "component" $component "target" "query-frontend") | nindent 4 }}

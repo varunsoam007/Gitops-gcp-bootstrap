@@ -1,0 +1,10 @@
+# ACR third-party images
+opencost:
+  exporter:
+    image:
+      registry: crpinthirdpartymgtintuks001.azurecr.io
+      repository: opencost/opencost
+  ui:
+    image:
+      registry: crpinthirdpartymgtintuks001.azurecr.io
+      repository: opencost/opencost-ui

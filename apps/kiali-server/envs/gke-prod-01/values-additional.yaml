@@ -1,0 +1,22 @@
+# Environment-specific overrides for devm-k01
+auth:
+  enabled: true
+  hostname: kiali.k01.devm.corp.pinpetuk.net
+  requiredRoles:
+    - "kiali.access"
+
+login_token:
+  signing_key: "tTkavZhMVeFgrgJ6P9Wla0NPwxIBw5T9"
+
+# Resources: req==lim (VPA upper: ~128Mi)
+deployment:
+  node_selector:
+    karpenter.sh/capacity-type: on-demand
+  tolerations: []
+  resources:
+    requests:
+      cpu: 23m
+      memory: 121Mi
+    limits:
+      cpu: 23m
+      memory: 122Mi

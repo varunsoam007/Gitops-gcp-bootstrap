@@ -1,0 +1,157 @@
+# ServiceMonitor CRDs for infrastructure components not covered by Helm chart ServiceMonitors
+# Alloy's prometheus.operator.servicemonitors discovers these automatically
+---
+# Headless service exposing CoreDNS metrics port (9153)
+# The managed kube-dns Service only has DNS ports (53) - no metrics port
+# This lets the ServiceMonitor discover CoreDNS scrape targets
+apiVersion: v1
+kind: Service
+metadata:
+  name: coredns-metrics
+  namespace: kube-system
+  labels:
+    k8s-app: kube-dns-metrics
+    app.kubernetes.io/component: monitoring
+spec:
+  clusterIP: None
+  selector:
+    k8s-app: kube-dns
+  ports:
+    - name: metrics
+      port: 9153
+      targetPort: 9153
+      protocol: TCP
+---
+# CoreDNS metrics - targets the coredns-metrics headless service above
+# Required for: CorednsPanicCount alert rule
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: coredns
+  namespace: alloy
+  labels:
+    app.kubernetes.io/component: monitoring
+spec:
+  namespaceSelector:
+    matchNames:
+      - kube-system
+  selector:
+    matchLabels:
+      k8s-app: kube-dns-metrics
+  endpoints:
+    - port: metrics
+      interval: 2m
+      scrapeTimeout: 30s
+---
+# Kubernetes API server metrics
+# Required for: KubernetesApiServerErrors, KubernetesApiClientErrors, KubernetesApiServerLatency
+# jobLabel: component ensures job=apiserver (from Service label component=apiserver)
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: kubernetes-apiserver
+  namespace: alloy
+  labels:
+    app.kubernetes.io/component: monitoring
+spec:
+  jobLabel: component
+  namespaceSelector:
+    matchNames:
+      - default
+  selector:
+    matchLabels:
+      component: apiserver
+      provider: kubernetes
+  endpoints:
+    - port: https
+      interval: 2m
+      scrapeTimeout: 30s
+      scheme: https
+      bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
+      tlsConfig:
+        caFile: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        insecureSkipVerify: true
+---
+# Mimir self-monitoring - scrapes all mimir-distributed components
+# Required for: mimir-self.yaml alert group (ingester/ruler/compactor/etc.)
+# Chart tags headless services with prometheus.io/service-monitor=false to avoid dup scraping
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: mimir
+  namespace: alloy
+  labels:
+    app.kubernetes.io/component: monitoring
+spec:
+  namespaceSelector:
+    matchNames:
+      - mimir
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mimir
+    matchExpressions:
+      - key: prometheus.io/service-monitor
+        operator: NotIn
+        values: ["false"]
+  endpoints:
+    - port: http-metrics
+      interval: 30s
+      scrapeTimeout: 30s
+      relabelings:
+        # Normalize Mimir job label to upstream dashboard shape: <namespace>/<component>.
+        # Most Mimir services are named mimir-<component>, so strip the prefix.
+        - sourceLabels: [__meta_kubernetes_namespace, __meta_kubernetes_service_name]
+          regex: (.*);mimir-(.*)
+          replacement: $1/$2
+          targetLabel: job
+      metricRelabelings:
+        # Some generated targets still expose job as <namespace>/mimir-<component>.
+        # Normalize metrics to <namespace>/<component> for upstream dashboards.
+        - sourceLabels: [job]
+          regex: (.+)/mimir-(.+)
+          replacement: $1/$2
+          targetLabel: job
+---
+# Karpenter controller metrics
+# Required for: karpenter.yaml alert group
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: karpenter
+  namespace: alloy
+  labels:
+    app.kubernetes.io/component: monitoring
+spec:
+  namespaceSelector:
+    matchNames:
+      - karpenter
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: karpenter
+  endpoints:
+    - port: http-metrics
+      interval: 1m
+      scrapeTimeout: 30s
+---
+# External-Secrets controller metrics
+# ESO chart doesn't ship a metrics Service by default; scrape pods directly on :8080
+# Required for: external-secrets.yaml alert group
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: external-secrets
+  namespace: alloy
+  labels:
+    app.kubernetes.io/component: monitoring
+spec:
+  namespaceSelector:
+    matchNames:
+      - external-secrets
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: external-secrets
+  podMetricsEndpoints:
+    - port: metrics
+      interval: 1m
+      scrapeTimeout: 30s
+

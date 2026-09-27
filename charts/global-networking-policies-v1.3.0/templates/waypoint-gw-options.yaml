@@ -1,0 +1,88 @@
+{{- $resources := .Values.waypointResources | default dict -}}
+{{- $configMap := $resources.configMap | default dict -}}
+{{- $hpa := $configMap.horizontalPodAutoscaler | default dict -}}
+{{- $pdb := $configMap.podDisruptionBudget | default dict -}}
+{{- $deployment := $configMap.deployment | default dict -}}
+{{- $legacyData := $configMap.data | default dict -}}
+{{- $extraData := $configMap.extraData | default dict -}}
+{{- $customData := mergeOverwrite (dict) $legacyData $extraData -}}
+{{- if and ($resources.enabled | default true) ($configMap.enabled | default true) }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "global-networking-policies.waypointConfigMapName" . }}
+  namespace: {{ .Release.Namespace }}
+  {{- if $configMap.annotations }}
+  annotations:
+    {{- toYaml $configMap.annotations | nindent 4 }}
+  {{- end }}
+data:
+  {{- if ($hpa.enabled | default true) }}
+  horizontalPodAutoscaler: |
+    spec:
+      minReplicas: {{ $hpa.minReplicas | default 1 }}
+      maxReplicas: {{ $hpa.maxReplicas | default 3 }}
+      metrics:
+      - type: Resource
+        resource:
+          name: cpu
+          target:
+            type: Utilization
+            averageUtilization: {{ $hpa.cpuAverageUtilization | default 60 }}
+  {{- end }}
+
+  {{- if ($pdb.enabled | default true) }}
+  podDisruptionBudget: |
+    spec:
+      minAvailable: {{ $pdb.minAvailable | default 1 }}
+      selector:
+        matchLabels:
+          gateway.networking.k8s.io/gateway-name: {{ include "global-networking-policies.waypointName" . }}
+  {{- end }}
+
+  {{- if ($deployment.enabled | default true) }}
+  deployment: |
+    spec:
+      template:
+        metadata:
+          annotations:
+            proxy.istio.io/config: {{ $deployment.proxyConfigJson | default "{\"accessLogFile\":\"/dev/stdout\"}" | squote }}
+{{- if $deployment.agentLogLevel }}
+            sidecar.istio.io/agentLogLevel: {{ $deployment.agentLogLevel | quote }}
+{{- end }}
+{{- if $deployment.proxyLogLevel }}
+            sidecar.istio.io/logLevel: {{ $deployment.proxyLogLevel | quote }}
+{{- end }}
+{{- if $deployment.proxyComponentLogLevel }}
+            sidecar.istio.io/componentLogLevel: {{ $deployment.proxyComponentLogLevel | quote }}
+{{- end }}
+        spec:
+          containers:
+          - name: istio-proxy
+            args:
+            - proxy
+            - waypoint
+            - --domain
+            - $(POD_NAMESPACE).svc.cluster.local
+            - --serviceCluster
+            - {{ printf "%s.$(POD_NAMESPACE)" (include "global-networking-policies.waypointName" .) | quote }}
+            - --proxyLogLevel
+            - {{ $deployment.proxyLogLevel | default "warning" | quote }}
+            - --proxyComponentLogLevel
+            - {{ $deployment.proxyComponentLogLevel | default "misc:error" | quote }}
+            - --log_output_level
+            - {{ $deployment.agentLogLevel | default "default:info" | quote }}
+            resources:
+{{ toYaml ($deployment.proxyResources | default dict) | nindent 14 }}
+{{- if $deployment.tolerations }}
+          tolerations:
+{{ toYaml $deployment.tolerations | nindent 10 }}
+{{- end }}
+  {{- end }}
+
+  {{- range $key, $value := $customData }}
+  {{ $key }}: |
+    {{- $value | nindent 4 }}
+  {{- end }}
+{{- end }}

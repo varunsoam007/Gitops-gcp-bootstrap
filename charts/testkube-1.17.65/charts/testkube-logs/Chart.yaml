@@ -1,0 +1,10 @@
+apiVersion: v2
+appVersion: 1.0.0
+dependencies:
+- name: global
+  repository: file://../global
+  version: 0.1.2
+description: A Helm chart for Kubernetes
+name: testkube-logs
+type: application
+version: 0.2.0

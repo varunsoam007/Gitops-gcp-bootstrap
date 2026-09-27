@@ -1,0 +1,84 @@
+---
+# prometheus-msteams: Transforms Alertmanager webhooks to Microsoft Teams Adaptive Cards
+# https://github.com/prometheus-msteams/prometheus-msteams
+# Using -workflow-webhook mode for Power Automate Workflow webhooks
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus-msteams
+  namespace: mimir
+  labels:
+    app.kubernetes.io/name: prometheus-msteams
+    app.kubernetes.io/component: alertmanager-webhook
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: prometheus-msteams
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: prometheus-msteams
+    spec:
+      containers:
+        - name: prometheus-msteams
+          image: crpinthirdpartymgtintuks001.azurecr.io/prometheusmsteams/prometheus-msteams:v1.5.4
+          args:
+            - "-workflow-webhook"
+            - "-teams-request-uri=alertmanager"
+          ports:
+            - name: http
+              containerPort: 2000
+              protocol: TCP
+          env:
+            - name: TEAMS_INCOMING_WEBHOOK_URL
+              valueFrom:
+                secretKeyRef:
+                  name: prometheus-msteams-webhook
+                  key: webhook_url
+          resources:
+            requests:
+              cpu: 10m
+              memory: 128Mi
+            limits:
+              memory: 128Mi
+          livenessProbe:
+            httpGet:
+              path: /config
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /config
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+            capabilities:
+              drop:
+                - ALL
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus-msteams
+  namespace: mimir
+  labels:
+    app.kubernetes.io/name: prometheus-msteams
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 2000
+      targetPort: http
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: prometheus-msteams

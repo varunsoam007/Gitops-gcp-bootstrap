@@ -1,0 +1,27 @@
+{{ $dict := dict "ctx" . "component" "querier" "memberlist" true }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "tempo.resourceName" $dict }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "tempo.labels" $dict | nindent 4 }}
+  {{- with .Values.querier.annotations }}
+  annotations:
+  {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  minReadySeconds: {{ .Values.querier.minReadySeconds }}
+{{- if not .Values.querier.autoscaling.enabled }}
+  replicas: {{ .Values.querier.replicas }}
+{{- end }}
+  revisionHistoryLimit: {{ .Values.tempo.revisionHistoryLimit }}
+  selector:
+    matchLabels:
+      {{- include "tempo.selectorLabels" $dict | nindent 6 }}
+  strategy:
+    rollingUpdate:
+      maxSurge: {{ .Values.querier.maxSurge }}
+      maxUnavailable: {{ .Values.querier.rollingUpdate.maxUnavailable }}
+  template:
+    {{- include "tempo.podTemplate" (dict "ctx" $ "component" .Values.querier "target" "querier") | nindent 4 }}

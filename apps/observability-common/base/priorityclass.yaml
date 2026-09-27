@@ -1,0 +1,15 @@
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: observability-critical
+  labels:
+    app.kubernetes.io/name: observability
+    app.kubernetes.io/component: scheduling
+value: 1000000
+globalDefault: false
+preemptionPolicy: PreemptLowerPriority
+description: >-
+  High priority for observability components (logs, metrics, traces).
+  Value 1000000 is below system-critical (2000000000) but above default (0).
+  Pods with this priority can preempt lower-priority workloads when resources
+  are constrained, ensuring observability data collection continues.

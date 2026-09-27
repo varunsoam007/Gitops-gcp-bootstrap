@@ -1,0 +1,69 @@
+profile: ambient
+
+resources:
+  requests:
+    cpu: 23m
+    memory: 215Mi
+  limits:
+    cpu: 23m
+    memory: 216Mi
+
+nodeSelector:
+  karpenter.sh/capacity-type: on-demand
+
+autoscaleEnabled: true
+autoscaleMin: 2
+autoscaleMax: 5
+autoscaleBehavior: {}
+rollingMaxSurge: 100%
+rollingMaxUnavailable: 25%
+
+  # meshConfig defines runtime configuration of components, including Istiod and istio-agent behavior
+  # See https://istio.io/docs/reference/config/istio.mesh.v1alpha1/ for all available options
+meshConfig:
+  # Disabled: Using PodMonitor for metrics collection instead of annotation-based scraping
+  # This eliminates duplicate scraping and "broken pipe" errors on port 15020
+  enablePrometheusMerge: false
+  defaultConfig:
+    # enable stats for circuit breakers, request retries, upstream connections, and request timeouts globally:
+    proxyStatsMatcher:
+      inclusionRegexps:
+        - ".*outlier_detection.*"
+        - ".*upstream_rq_retry.*"
+        - ".*upstream_rq_pending.*"
+        - ".*upstream_cx_.*"
+      inclusionSuffixes:
+        - "upstream_rq_timeout"
+
+  extensionProviders:
+  - name: oauth2-proxy-ext-authz
+    envoyExtAuthzHttp:
+      service: platform-auth.platform-auth.svc.cluster.local
+      port: 4180
+      pathPrefix: ""
+      headersToDownstreamOnDeny:
+        - content-type
+        - set-cookie
+        - location
+      headersToDownstreamOnAllow:
+        - set-cookie
+      headersToUpstreamOnAllow:
+        - authorization
+        - cookie
+        - x-forwarded-access-token
+        - x-forwarded-user
+        - x-forwarded-email
+        - x-auth-request-user
+        - x-auth-request-email
+        - x-auth-request-preferred-username
+        - x-auth-request-groups
+      includeRequestHeadersInCheck:
+        - ":method"
+        - ":path"
+        - ":authority"
+        - "authorization"
+        - "x-forwarded-proto"
+        - "x-forwarded-host"
+        - "x-request-id"
+        - "cookie"
+

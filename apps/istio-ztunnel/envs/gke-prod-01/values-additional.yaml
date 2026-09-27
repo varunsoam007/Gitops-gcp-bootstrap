@@ -1,0 +1,16 @@
+tolerations:
+  - effect: NoSchedule
+    key: CriticalAddonsOnly
+    operator: Exists
+  - effect: NoSchedule
+    key: kubernetes.azure.com/scalesetpriority
+    operator: Equal
+    value: spot
+
+resources:
+  requests:
+    cpu: 126m
+    memory: 100Mi
+  limits:
+    cpu: 126m
+    memory: 106Mi

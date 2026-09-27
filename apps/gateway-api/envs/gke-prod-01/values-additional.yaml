@@ -1,0 +1,156 @@
+
+#==================================== 
+# Environment configuration
+#====================================
+environment: "devm"
+cluster: "k01"
+domain: "pinpetuk.net"
+
+# Gateway API CRDs
+gatewayApi:
+  enabled: true
+
+#==================================== 
+# External Gateway configuration
+#====================================
+
+externalGateway:
+  enabled: true
+  name: "shared-gateway-ext"
+
+  # Azure Load Balancer configuration
+  loadBalancer:
+    ipv4: "10.64.69.4"
+    resourceGroup: "rg-pin-aksshared-devm-int-uks-001"
+    subnet: "snet-pin-aks-devm-int-uks-002"
+ 
+  # External DNS configuration
+  externalDns:
+    target: "cfde-pin-fdr-devm-ext-uks-ingress-cxcnb3dgbzhjddcy.z01.azurefd.net" # Frontdoor alias name
+  
+  # TLS configuration
+  tls:
+    certificateRef: "wildcard-k01-devm-corp-pinpetuk-net"
+
+
+#==================================== 
+# Internal Gateway configuration
+#====================================
+
+internalGateway:
+  enabled: true
+  name: "shared-gateway-int"
+
+  # Azure Load Balancer configuration
+  loadBalancer:
+    ipv4: "10.64.69.5"
+    resourceGroup: "rg-pin-aksshared-devm-int-uks-001"
+    subnet: "snet-pin-aks-devm-int-uks-002"
+  
+  # TLS configuration
+  tls:
+    certificateRef: "wildcard-k01-devm-corp-pinpetuk-net"
+  
+  # Hostname configuration for listeners
+  hostname: "*.k01.devm.corp.pinpetuk.net"
+
+
+#==================================== 
+# Certificate configuration
+#====================================
+
+certificates:
+  - name: "wildcard-k01-devm-pinpetuk-net"
+    secretName: "wildcard-k01-devm-pinpetuk-net"
+    dnsNames:
+      - "*.k01.devm.pinpetuk.net"
+    issuerRef:
+      name: "letsencrypt-prod-k01.devm.pinpetuk.net"
+      kind: "ClusterIssuer"
+
+  - name: "wildcard-k01-devm-corp-pinpetuk-net"
+    secretName: "wildcard-k01-devm-corp-pinpetuk-net"
+    dnsNames:
+      - "*.k01.devm.corp.pinpetuk.net"
+    issuerRef:
+      name: "letsencrypt-prod-k01.devm.corp.pinpetuk.net"
+      kind: "ClusterIssuer"
+
+
+#====================================
+# Deployment overrides
+#====================================
+gatewayOptions:
+  external:
+    data:
+      deployment: |
+        spec:
+          template:
+            spec:
+              terminationGracePeriodSeconds: 30
+              priorityClassName: observability-critical
+              nodeSelector:
+                kubernetes.azure.com/mode: user
+                karpenter.sh/capacity-type: on-demand
+              containers:
+              - name: istio-proxy
+                resources:
+                  requests:
+                    cpu: 15m
+                    memory: 100Mi
+                  limits:
+                    cpu: 15m
+                    memory: 100Mi
+
+  internal:
+    data:
+      deployment: |
+        spec:
+          template:
+            spec:
+              terminationGracePeriodSeconds: 30
+              priorityClassName: observability-critical
+              nodeSelector:
+                kubernetes.azure.com/mode: user
+                karpenter.sh/capacity-type: on-demand
+              containers:
+              - name: istio-proxy
+                resources:
+                  requests:
+                    cpu: 15m
+                    memory: 105Mi
+                  limits:
+                    cpu: 15m
+                    memory: 106Mi
+  
+  waypoint:
+    data:
+      deployment: |
+        spec:
+          template:
+            spec:
+              containers:
+              - name: istio-proxy
+                resources:
+                  requests:
+                    cpu: 23m
+                    memory: 121Mi
+                  limits:
+                    cpu: 23m
+                    memory: 122Mi
+  
+  waypointEgress:
+    data:
+      deployment: |
+        spec:
+          template:
+            spec:
+              containers:
+              - name: istio-proxy
+                resources:
+                  requests:
+                    cpu: 15m
+                    memory: 100Mi
+                  limits:
+                    cpu: 15m
+                    memory: 100Mi

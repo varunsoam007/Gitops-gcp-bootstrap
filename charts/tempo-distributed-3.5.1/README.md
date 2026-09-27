@@ -1,0 +1,761 @@
+# tempo-distributed Helm Chart
+
+Grafana Tempo in MicroService mode
+
+## Source Code
+
+* <https://github.com/grafana/tempo>
+
+## Requirements
+
+Kubernetes: `^1.25.0-0`
+
+| Repository | Name | Version |
+|------------|------|---------|
+| https://grafana.github.io/helm-charts | grafana-agent-operator | 0.5.2 |
+| https://grafana.github.io/helm-charts | rollout_operator | 0.43.0 |
+
+## Installing the Chart
+
+### OCI Registry
+
+OCI registries are preferred in Helm as they implement unified storage, distribution, and improved security.
+
+```console
+helm install RELEASE-NAME oci://ghcr.io/grafana-community/helm-charts/tempo-distributed
+```
+
+### HTTP Registry
+
+```console
+helm repo add grafana-community https://grafana-community.github.io/helm-charts
+helm repo update
+helm install RELEASE-NAME grafana-community/tempo-distributed
+```
+
+## Uninstalling the Chart
+
+To remove all of the Kubernetes objects associated with the Helm chart release:
+
+```console
+helm delete RELEASE-NAME
+```
+
+## Changelog
+
+See the [changelog](https://grafana-community.github.io/helm-charts/changelog/?chart=tempo-distributed).
+
+---
+
+## Upgrading
+
+A major chart version change indicates that there is an incompatible breaking change needing manual actions.
+
+### StatefulSet governing service (`tempo.useHeadlessGoverningService`)
+
+Five StatefulSets in this chart write a short, unprefixed `spec.serviceName`: the
+live-store, the block-builder, the backend-scheduler, the backend-worker and the
+metrics-generator. `live-store` is one example. No Service carries such a name, so the
+stable per-pod DNS names (`<pod>.<service>.<namespace>.svc`) never resolved. Set
+`tempo.useHeadlessGoverningService: true` to point those five StatefulSets at the headless
+Service of their own component instead. The memcached StatefulSets already write the full
+resource name, and the value does not touch them. The zone StatefulSets of the live-store
+also write the full resource name, so the value does not change them either. The value also sets
+`publishNotReadyAddresses: true` on the five Services, so a per-pod name resolves while its
+pod is not ready.
+
+The value defaults to `false`, because `spec.serviceName` is immutable. A plain
+`helm upgrade` with the value set to `true` fails with:
+
+```console
+StatefulSet.apps "..." is invalid: spec: Forbidden: updates to statefulset spec for fields
+other than 'replicas', 'ordinals', 'template', 'updateStrategy', ... are forbidden
+```
+
+To enable it, delete each affected StatefulSet first and keep the pods, then upgrade, then
+restart the pods:
+
+```bash
+STATEFULSETS="<release>-tempo-live-store <release>-tempo-block-builder \
+  <release>-tempo-backend-scheduler <release>-tempo-backend-worker \
+  <release>-tempo-metrics-generator"
+
+kubectl delete statefulset --cascade=orphan -n <namespace> $STATEFULSETS
+helm upgrade ... --set tempo.useHeadlessGoverningService=true
+kubectl rollout restart statefulset -n <namespace> $STATEFULSETS
+```
+
+The Helm upgrade recreates the StatefulSets and adopts the running pods, so the delete costs
+no trace data.
+
+The restart is required. A pod takes `spec.subdomain` from the governing service at creation
+only, and nothing rewrites it later. `spec.serviceName` is also outside `spec.template`, so
+the recreated StatefulSet keeps the same pod template and rolls nothing on its own. The
+adopted pods therefore keep the old subdomain, and the EndpointSlice controller publishes
+`<pod>.<service>` only where the subdomain of the pod equals the name of the Service. The
+per-pod names start to resolve when the restart has replaced every pod. Plan it as a normal
+rolling restart of those components. Delete the pods by hand instead where a StatefulSet
+runs the `OnDelete` update strategy.
+
+The default flips to `true` in the next major chart version.
+
+### MinIO subchart removed
+
+The built-in MinIO subchart has been removed in chart v3.0.0. `minio` is no longer a chart
+dependency, and setting `minio.enabled: true` fails the render. Tempo must point at an
+externally managed S3-compatible object store via `storage.trace.s3`:
+
+```yaml
+storage:
+  trace:
+    backend: s3
+    s3:
+      bucket: tempo-traces
+      endpoint: minio.minio-namespace.svc.cluster.local:9000
+      access_key: <access-key>
+      secret_key: <secret-key>
+      insecure: true  # remove if TLS is configured
+```
+
+If you previously used the built-in subchart, do **not** run a plain `helm upgrade`: it
+would garbage collect the MinIO Deployment, Service, Secret, and PVC and destroy your trace
+data. Detach those objects from the release first (annotate them with
+`helm.sh/resource-policy: keep`, the Helm equivalent of `kubectl delete --cascade=orphan`),
+then repoint `storage.trace.s3` at the surviving MinIO Service. See [`UPGRADE.md`](./UPGRADE.md)
+for the full procedure.
+
+### From Chart versions < 2.17.10
+
+Version 2.17.10 change the memcached Services and Statefulsets spec.
+These changes cannot be done by patching the resources, causing an existing installation not to be upgradable without manual interaction.
+
+An upgrade will fail with a message like:
+```
+Error: UPGRADE FAILED: Service "tempo-memcached" is invalid: spec.clusterIPs[0]: Invalid value: ["None"]: may not change once set && StatefulSet.apps "tempo-memcached" is invalid: spec: Forbidden: updates to statefulset spec for fields other than 'replicas', 'ordinals', 'template', 'updateStrategy', 'revisionHistoryLimit', 'persistentVolumeClaimRetentionPolicy' and 'minReadySeconds' are forbidden
+````
+
+There are basically two options:
+
+#### Option 1
+Uninstall the old release and re-install the new one.
+
+#### Option 2
+Delete the affected Services and Statefulsets, and re-install the new ones.
+
+```
+kubectl -n <namespace> delete service --selector 'app.kubernetes.io/instance=<instance-name>,app.kubernetes.io/component in (memcached,memcached-bloom,memcached-parquet-footer,memcached-frontend-search)'
+```
+
+Perform a non-cascading deletion of the Statefulsets which will keep the pods running:
+
+```
+kubectl -n <namespace> delete statefulset --selector 'app.kubernetes.io/instance=<instance-name>,app.kubernetes.io/component in (memcached,memcached-bloom,memcached-parquet-footer,memcached-frontend-search)' --cascade=orphan
+```
+
+Perform a regular Helm upgrade on the existing release. The new Statefulsets will pick up the existing pods and perform a rolling upgrade.
+
+### From Chart versions < 3.0.0
+
+Tempo 3.0 replaces the ingester-based write path with a Kafka-backed architecture. This is a breaking change for microservices-mode deployments.
+
+See [UPGRADE.md](UPGRADE.md) for the full migration guide, including the parallel-deployment path, Kafka configuration, and the `tempo-cli migrate config` command.
+
+### From Chart versions < 2.0.0
+
+The minimum required Kubernetes version is now 1.25. All references to deprecated APIs have been removed.
+
+### From Chart versions < 1.48.1
+
+Please be aware that we've updated the Tempo version to 2.9, which includes some breaking changes
+We recommend reviewing the [release notes](https://github.com/grafana/tempo/releases/tag/v2.9.0) before upgrading.
+
+### From Chart versions < 1.41.2
+
+Please be aware that we've updated the Tempo version to 2.8, which includes some breaking changes
+We recommend reviewing the [release notes](https://github.com/grafana/tempo/releases/tag/v2.8.0) before upgrading.
+
+### From Chart versions < 1.41.0
+
+* Breaking Change *
+In order to be consistent with other projects and documentations, the default port has been changed from 3100 to 3200.
+
+### From Chart versions < 1.33.0
+
+* Breaking Change *
+In order to reduce confusion, the overrides configurations have been renamed as below.
+
+`global_overrides` =>  `overrides` (this is where the defaults for every tenant is set)
+`overrides` => `per_tenant_overrides` (this is where configurations for specific tenants can be set)
+
+### From Chart versions < 1.31.0
+
+Tempo serverless was deprecated in [tempo 2.7 release](https://github.com/grafana/tempo/releases/tag/v2.7.0),
+Config options related to serverless are being removed from helm chart, and this might be a breaking change if you were using tempo serverless.
+
+These config optioons are removed in [tempo#4599](https://github.com/grafana/tempo/pull/4599) and will not work from next release of tempo.
+
+### From Chart versions < 1.28.2
+
+Please be aware that we've updated the Tempo version to 2.7, which includes some breaking changes
+We recommend reviewing the [release notes](https://grafana.com/docs/tempo/latest/release-notes/v2-7/) before upgrading.
+
+### From Chart versions < 1.23.0
+
+A default affinity has been defined in this version for the compactor following the standard used in other components.
+
+### From Chart versions < 1.21.0
+
+Upgrading to chart 1.21.0 will set the memberlist cluster_label config option. During rollout your cluster will temporarily be split into two memberlist clusters until all components are rolled out.
+This will interrupt reads and writes. This config option is set to prevent cross talk between Tempo and other memberlist clusters.
+
+### From Chart versions < 1.18.0
+
+Please be aware that we've updated the minor version to Tempo 2.6, which includes breaking changes.
+We recommend reviewing the [release notes](https://github.com/grafana/tempo/releases/tag/v2.6.0/) before upgrading.
+
+### From Chart versions < 1.15.2
+
+Switch to new overrides format, see https://grafana.com/docs/tempo/latest/configuration/#overrides.
+
+### From Chart versions < 1.13.0
+
+EXPERIMENTAL: Zone Aware Replication has been added to the ingester statefulset.
+Attention, the calculation of the pods per AZ is as follows ```(.values.ingester.replicas + numberOfZones -1)/numberOfZones```
+
+### From Chart versions < 1.6.0
+
+The metrics generator component in the chart has been disabled by default, but the configuration for the processors was not empty, resulting error sin the distributor log.  Here we align the default metrics generator config settings to both disable the generator and remove processors.  Users who wish to keep the their processors enabled, will need to update their values.
+
+### From Chart versions < 1.5.0
+
+Please be aware that we've updated the minor version to Tempo 2.2, which includes breaking changes.
+We recommend reviewing the [release notes](https://github.com/grafana/tempo/releases/tag/v2.2.0) before upgrading.
+
+### From Chart versions < 1.3.0
+
+Please be aware that we've updated the minor version to Tempo 2.1, which includes breaking changes.
+We recommend reviewing the [release notes](https://github.com/grafana/tempo/releases/tag/v2.1.0/) before upgrading.
+
+### From Chart versions < 1.0.0
+
+Please note that we've incremented the major version when upgrading to Tempo 2.0. There were a large number of
+changes in this release (breaking and otherwise). It is encouraged to review the [release notes](https://grafana.com/docs/tempo/latest/release-notes/v2-0/)
+and [1.5 -> 2.0 upgrade guide](https://grafana.com/docs/tempo/latest/setup/upgrade/) before upgrading.
+
+### From chart version < 0.27.0
+
+Version 0.27.0:
+
+Many changes have been introduced, including some breaking changes.
+
+The [PR](https://github.com/grafana/helm-charts/pull/1759) includes additional details.
+
+* **BREAKING CHANGE** centralize selector label handling -- users who wish to keep old values should still be able to use the `nameOverride` and `fullNameOverride` top level keys in their values.
+
+* **BREAKING CHANGE** serviceMonitor has been nested under metaMonitoring -- metamonitoring can be used scrape services as well as install the operator with the following values.  Note also that the port names have changed from `http` to `http-metrics`.
+```yaml
+metaMonitoring:
+  serviceMonitor:
+    enabled: true
+  grafanaAgent:
+    enabled: true
+    installOperator: true
+```
+* allow configuration to be stored in a secret.  See the documentation for `useExternalConfig` and `configStorageType` in the values file for more details.
+
+### From chart version < 0.26.0
+
+Version 0.26.0
+
+* Moves metricsGenerator.config.storage_remote_write to metricsGenerator.config.storage.remote_write
+* Moves metricsGenerator.config.service_graphs_max_items to metricsGenerator.config.processor.service_graphs.max_items
+
+### From chart version < 0.23.0
+
+Version 0.23.0:
+
+* Adds /var/tempo emptyDir mount for querier, queryfrontend, distributor and compactor. Previously, /var/tempo was directory inside container.
+
+* Sets queryFrontend.query.enabled to false. tempo-query is only required for grafana version <7.5 for compatibility with jaeger-ui. Please also note that tempo-query is incompatible with securityContext readOnlyRootFilesystem set to true.
+
+* Sets stricter default securityContext:
+```yaml
+tempo:
+  securityContext:
+    capabilities:
+      drop:
+        - ALL
+    readOnlyRootFilesystem: true
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
+    allowPrivilegeEscalation: false
+  podSecurityContext:
+    fsGroup: 1000
+```
+If you had ingester persistence enabled, you might need to manually change ownership of files in your PV if your CSI doesn't support fsGroup
+
+### From Chart version >= 0.22.0
+Align Istio gRPC named port syntax. For example,
+
+- otlp-grpc               -> grpc-otlp
+- distributor-otlp-grpc   -> grpc-distributor-otlp
+- jaeger-grpc             -> grpc-jaeger
+- distributor-jaeger-grpc -> grpc-distributor-jaeger
+
+In case you need to rollback, please search the right hand side pattern and replace with left hand side pattern.
+
+### From Chart version < 0.20.0
+The image's attributes must be set under the `image` key for the Memcached service.
+```yaml
+memcached:
+  image:
+    registry: docker.io
+    repository: memcached
+    tag: "1.5.17-alpine"
+    pullPolicy: "IfNotPresent"
+```
+
+### From Chart version < 0.18.0
+Trace ingestion must now be enabled with the `enabled` key:
+```yaml
+traces:
+  otlp:
+    grpc:
+      enabled: true
+    http:
+      enabled: true
+  zipkin:
+    enabled: true
+  jaeger:
+    thriftHttp:
+      enabled: true
+  opencensus:
+    enabled: true
+```
+
+### From Chart versions < 0.9.0
+
+This release the component label was shortened to be more aligned with the Loki-distributed chart and the [mixin](https://github.com/grafana/tempo/tree/master/operations/tempo-mixin) dashboards.
+
+Due to the label changes, an existing installation cannot be upgraded without manual interaction. There are basically two options:
+
+Option 1
+Uninstall the old release and re-install the new one. There will be no data loss, as the collectors/agents can cache for a short period.
+
+Option 2
+Add new selector labels to the existing pods. This option will make your pods also temporarily unavailable, option 1 is faster:
+
+```
+kubectl label pod -n <namespace> -l app.kubernetes.io/component=<release-name>-tempo-distributed-<component>,app.kubernetes.io/instance=<instance-name> app.kubernetes.io/component=<component> --overwrite
+```
+
+Perform a non-cascading deletion of the Deployments and Statefulsets which will keep the pods running:
+
+```
+kubectl delete <deployment/statefulset> -n <namespace> -l app.kubernetes.io/component=<release-name>-tempo-distributed-<component>,app.kubernetes.io/instance=<instance-name> --cascade=false
+```
+
+Perform a regular Helm upgrade on the existing release. The new Deployment/Statefulset will pick up the existing pods and perform a rolling upgrade.
+
+### From Chart versions < 0.8.0
+
+By default all tracing protocols are disabled and you need to specify which protocols to enable for ingestion.
+
+For example to enable Jaeger gRPC thrift http and zipkin protocols:
+```yaml
+traces:
+  jaeger:
+    grpc: true
+    thriftHttp: true
+  zipkin: true
+```
+
+The distributor service is now called {{tempo.fullname}}-distributor. That could impact your ingestion towards this service.
+
+### From Chart Versions < 0.7.0
+
+The memcached default args are removed and should be provided manually. The settings for the `memcached.exporter` moved to `memcachedExporter`
+
+## Components
+
+The chart supports the components shown in the following table.
+Distributor, querier, and query-frontend are always installed.
+The other components are optional and must be explicitly enabled.
+
+| Component | Optional | Notes |
+| --- | --- | --- |
+| distributor | no | Writes spans to Kafka in Tempo 3.0 |
+| querier | no | |
+| query-frontend | no | |
+| backend-scheduler | yes (`backendScheduler.enabled`) | Required for compaction and retention |
+| backend-worker | yes (enabled with backend-scheduler) | Executes compaction jobs |
+| block-builder | yes (`blockBuilder.enabled`) | Consumes from Kafka, writes blocks to object storage |
+| live-store | yes (`liveStore.enabled`) | Consumes from Kafka, serves recent-data queries |
+| metrics-generator | yes | |
+| memcached | yes | |
+| memcached-exporter | yes | |
+| gateway | yes | |
+| rollout-operator | yes | |
+
+## [Configuration](https://grafana.com/docs/tempo/latest/configuration/)
+
+This chart configures Tempo in microservices mode.
+
+Refer to the [Get started with Grafana Tempo using the Helm chart](https://grafana.com/docs/helm-charts/tempo-distributed/next/get-started-helm-charts/) documentation for more details.
+
+**NOTE:**
+In its default configuration, the chart uses `local` filesystem as storage.
+The reason for this is that the chart can be validated and installed in a CI pipeline.
+However, this setup is not fully functional.
+The recommendation is to use object storage, such as S3, GCS, MinIO, etc., or one of the other options documented at https://grafana.com/docs/tempo/latest/configuration/#storage.
+
+Alternatively, in order to quickly test Tempo using the filestore, the [single binary chart](https://github.com/grafana-community/helm-charts/tree/main/charts/tempo) can be used.
+
+### Overriding configuration variables with structuredConfig
+
+tempo.structuredConfig variable can be used to alter individual values in the configuration and it's structured YAML instead of text. It takes precedence over all other variable adjustments inside tempo.yaml config file, ie s3 storage settings.
+
+Example:
+
+```yaml
+tempo:
+  structuredConfig:
+    query_frontend:
+      search:
+        max_duration: 12h0m0s
+```
+
+### Activate metrics generator
+
+Metrics-generator is disabled by default and can be activated by configuring the following values:
+
+```yaml
+metricsGenerator:
+  enabled: true
+  config:
+    storage:
+      remote_write:
+      - url: http://cortex/api/v1/push
+        send_exemplars: true
+    #   headers:
+    #     x-scope-orgid: operations
+# Global overrides
+global_overrides:
+  defaults:
+    metrics_generator:
+      processors:
+        - service-graphs
+        - span-metrics
+```
+
+----
+
+### Directory and File Locations
+
+* Volumes are mounted to `/var/tempo`. The various directories Tempo needs should be configured as subdirectories (e. g. `/var/tempo/wal`, `/var/tempo/traces`). Tempo will create the directories automatically.
+* The config file is mounted to `/conf/tempo-query.yaml` and passed as CLI arg.
+
+### Example configuration using S3 for storage
+
+```yaml
+storage:
+  trace:
+    backend: s3
+    s3:
+      access_key: tempo
+      bucket: <your-s3-bucket>
+      endpoint: s3.amazonaws.com
+      secret_key: <your-secret>
+    wal:
+      path: /var/tempo/wal
+
+ingest:
+  kafka:
+    address: <kafka-broker>:9092
+    topic: tempo-traces
+
+blockBuilder:
+  enabled: true
+  replicas: 3  # must equal Kafka partition count
+
+liveStore:
+  enabled: true
+  replicas: 3  # must equal Kafka partition count
+
+backendScheduler:
+  enabled: true
+
+traces:
+  otlp:
+    http:
+      enabled: true
+    grpc:
+      enabled: true
+```
+
+### Zone-aware replication for the live-store
+
+The live-store serves the recent part of every trace query. Without zone
+awareness the chart renders one flat StatefulSet, so each Kafka partition has
+exactly one live-store. If that pod goes away, recent-trace queries for its
+partition fail until the pod comes back.
+
+Zone-aware replication renders one StatefulSet per zone. Each zone runs a full
+set of live-stores and passes its own
+`-live-store.instance-availability-zone` to Tempo. A live-store reads Kafka
+under a consumer group of its own, because the chart leaves
+`ingest.kafka.consumer_group` unset and Tempo then falls back to the pod name,
+so the zones consume every partition independently. A partition therefore has one
+owner per zone, and a querier needs an answer from one zone only. The loss of a
+zone no longer breaks recent-trace queries.
+
+The rollout-operator coordinates the rollout. It moves one zone at a time and
+restarts at most `maxUnavailable` live-stores inside that zone, so the other
+zones keep serving. Zone-aware StatefulSets use the `OnDelete` update strategy,
+which means nothing restarts them unless a rollout-operator watches the
+namespace. The chart refuses to render without one.
+
+```yaml
+rollout_operator:
+  enabled: true
+
+liveStore:
+  enabled: true
+  replicas: 3  # partitions per zone; must equal the Kafka partition count
+  zoneAwareReplication:
+    enabled: true
+    topologyKey: topology.kubernetes.io/zone
+    zones:
+      - name: zone-a
+        nodeSelector:
+          topology.kubernetes.io/zone: eu-west-1a
+      - name: zone-b
+        nodeSelector:
+          topology.kubernetes.io/zone: eu-west-1b
+```
+
+The example above runs 6 live-stores: 3 partitions in each of the 2 zones.
+
+Notes:
+
+- `liveStore.replicas` stays the Kafka partition count. It is the size of one
+  zone, not the total. Adding a zone multiplies the live-store count and the
+  Kafka read traffic.
+- At least 2 zones are required.
+- `topologyKey` adds a required anti-affinity rule that keeps the live-stores of
+  one zone off the domains that run another zone. The cluster must hold at least
+  as many domains as there are zones, otherwise the extra zones stay
+  unschedulable. `kubernetes.io/hostname` is the conservative choice, and
+  `topology.kubernetes.io/zone` needs one availability zone per zone. Leave it
+  unset when a `nodeSelector` on every zone already pins the zones.
+- `liveStore.topologySpreadConstraints` is ignored while zone-awareness is on,
+  because the zones already define the spread. `liveStore.affinity` and the node
+  selector of the component are kept: a zone merges its own `extraAffinity` and
+  `nodeSelector` on top of them.
+- Voluntary evictions are guarded per partition, not per pod count. See below.
+- Set `zoneAwareReplication.rolloutOperatorManagedExternally: true` when a
+  rollout-operator already runs in the namespace and this chart must not
+  install one.
+- With no `topologyKey` and no per-zone `nodeSelector`, the zones still give
+  separate pods, separate consumer groups and one partition owner each, but the
+  scheduler can place two zones in one failure domain. Nothing then protects the
+  partition from the loss of that domain.
+
+#### Turning zone-awareness on
+
+The switch replaces the flat StatefulSet with the per-zone ones, so every
+live-store restarts at once and the recent-read tier is unavailable until the
+pods are ready. The new pods also carry new names, and a live-store takes its
+Kafka consumer group from its pod name, so every consumer group is new and has
+no committed offset. Every live-store replays the Kafka lookback period to
+rebuild its query state. Plan the switch like a full live-store restart.
+
+#### Draining a node
+
+The same pod ordinal in every zone holds every owner of one Kafka partition:
+`live-store-zone-a-2` and `live-store-zone-b-2` both own partition 2. A native
+PodDisruptionBudget counts pods and cannot express that, so it either allows
+both to go at once, or it has to be tightened to one eviction for the whole
+live-store set.
+
+Zone-awareness therefore renders a `ZoneAwarePodDisruptionBudget` instead, which
+the rollout-operator enforces on the eviction of a pod. It reads the partition
+from the pod name and counts the unavailable live-stores of that partition over
+every zone:
+
+```yaml
+liveStore:
+  zoneAwareReplication:
+    podDisruptionBudget:
+      enabled: true
+      maxUnavailable: 1
+```
+
+With `maxUnavailable: 1`, a drain can take one live-store per partition and many
+partitions at the same time, and it can never take the last owner of a
+partition. The rollout-operator rejects an eviction while it is unreachable, so
+this opens no window. It replaces the `liveStore.podDisruptionBudget` object.
+
+Set `crossZoneEvictionDelay` when the live-stores run with the default
+`readiness-target-lag` of 0, because a live-store then reports ready while it
+still replays its partition:
+
+```yaml
+liveStore:
+  zoneAwareReplication:
+    podDisruptionBudget:
+      crossZoneEvictionDelay: 20m
+```
+
+The budget needs the `ZoneAwarePodDisruptionBudget` CRD and the pod eviction
+webhook. The bundled rollout-operator installs both, and the chart refuses to
+render when either is turned off. Set `podDisruptionBudget.enabled: false` to
+fall back to a single native PodDisruptionBudget over all zones, with
+`liveStore.maxUnavailable` as the budget for the whole set.
+
+#### Scaling down
+
+A live-store count must keep matching the Kafka partition count, so a lower
+`liveStore.replicas` retires the last Kafka partitions, and a partition that
+loses its last owner loses its recent-read tier. Two opt-in settings guard that
+change. Both need the rollout-operator admission webhooks, which the subchart
+enables by default.
+
+`noDownscale` rejects every scale-down of the live-stores:
+
+```yaml
+liveStore:
+  zoneAwareReplication:
+    noDownscale: true
+```
+
+`prepareDownscale` coordinates the scale-down instead. On a scale-down the
+webhook calls `live-store/prepare-partition-downscale` on every live-store that
+goes away, which moves its partition to INACTIVE and stops the writes to it. The
+webhook then rejects the scale-down of a second zone until
+`minTimeBetweenZonesDownscale` has passed, so the zones go down one at a time:
+
+```yaml
+liveStore:
+  zoneAwareReplication:
+    prepareDownscale:
+      enabled: true
+      minTimeBetweenZonesDownscale: 12h
+```
+
+A rejected scale-down fails the `helm upgrade`, and the zones that were already
+accepted stay scaled down. Wait for the window, then run the upgrade again.
+
+The pod stops as soon as its partition is INACTIVE. The zones that are still up
+own that partition too and hold the same recent traces, so the read path stays
+whole until the last zone goes down. The last zone is the one that takes the
+last owner away, which is why `minTimeBetweenZonesDownscale` must be longer than
+the period a live-store still serves recent traces. Writes to the partition stop
+at the first zone, so the window starts there.
+
+Two limits follow from the same design:
+
+- Remove a zone from the `zones` list and Helm deletes its StatefulSet. A
+  deletion is not a scale-down, so the webhook never sees it and no partition
+  goes INACTIVE. This is safe, because every remaining zone still owns every
+  partition, but do not combine it with a lower `liveStore.replicas` in one
+  step.
+- The chart does not configure the delayed-downscale mechanism of the
+  rollout-operator, which needs a `ReplicaTemplate` resource and the
+  mirror-replicas annotations. That mechanism is what lets the Tempo jsonnet
+  point the webhook at `live-store/prepare-downscale`, the endpoint that also
+  keeps the pod from re-creating its partition on start. Here the zone stagger
+  does that job instead.
+
+The webhook reaches the live-stores through the pod DNS names of the headless
+service, and it builds them with its own cluster domain, which defaults to
+`cluster.local`. When `global.clusterDomain` differs, pass the same domain to
+the rollout-operator, otherwise the chart refuses to render:
+
+```yaml
+global:
+  clusterDomain: custom.local
+rollout_operator:
+  extraArgs:
+    - -cluster-domain=custom.local
+```
+
+### Memcached cache configuration
+
+By default, the chart deploys a single shared memcached StatefulSet (`memcached`) used for all cache roles — bloom filters, parquet footer, and frontend search. This is the simplest setup and works well for most deployments.
+
+#### Default: single shared cache
+
+```yaml
+memcached:
+  enabled: true
+```
+
+All cache roles (bloom, parquet footer, frontend search) point at the same `<release>-memcached` service.
+
+#### Separate one cache role
+
+You can deploy a dedicated memcached cluster for a specific role by enabling the corresponding per-role section. The shared `memcached` cluster remains active for the other roles.
+
+For example, to give bloom filters their own cluster while keeping the rest on the shared one:
+
+```yaml
+memcachedBloom:
+  enabled: true
+  replicas: 2
+```
+
+Available per-role sections:
+
+| Key | Cache role |
+| --- | --- |
+| `memcachedBloom` | Bloom filter cache |
+| `memcachedParquetFooter` | Parquet footer cache |
+| `memcachedFrontendSearch` | Frontend search cache |
+
+#### Fully isolated caches per role
+
+To run a dedicated memcached cluster for every cache role, disable the shared cluster and enable all three per-role clusters:
+
+```yaml
+memcached:
+  enabled: false
+
+memcachedBloom:
+  enabled: true
+  replicas: 2
+
+memcachedParquetFooter:
+  enabled: true
+  replicas: 2
+
+memcachedFrontendSearch:
+  enabled: true
+  replicas: 2
+```
+
+Each role gets its own StatefulSet and Service, and Tempo is configured to use the matching host for every cache type.
+
+### Enabling gRPC Open Telemetry
+
+gRPC for Open Telemetry is disabled by default, simply flip the bool in the `traces` block to turn it on.
+
+If you have enabled the gateway as well, this will let you push traces using the default Open Telemetry API path (`/opentelemetry.proto.collector.trace.v1.TraceService/Export`), on the 4317 port. This port can be overwritten as well in the values.
+
+```yaml
+traces:
+  otlp:
+    http:
+      # -- Enable Tempo to ingest Open Telemetry HTTP traces
+      enabled: false
+      # -- HTTP receiver advanced config
+      receiverConfig: {}
+    grpc:
+      # -- Enable Tempo to ingest Open Telemetry GRPC traces
+      enabled: true
+      # -- GRPC receiver advanced config
+      receiverConfig: {}
+      # -- Default OTLP gRPC port
+      port: 4317
+```

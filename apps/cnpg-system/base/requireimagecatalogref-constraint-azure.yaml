@@ -1,0 +1,8 @@
+# apiVersion: constraints.gatekeeper.sh/v1beta1
+# kind: K8sAllowedReposv2
+# metadata:
+#   name: only-catalog-refs
+# spec:
+#   parameters:
+#     allowedImages:
+#       - postgresql

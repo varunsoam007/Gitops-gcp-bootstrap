@@ -1,0 +1,5 @@
+apiVersion: v2
+name: global-networking-policies
+version: 1.3.0
+type: application
+description: global-networking-policies

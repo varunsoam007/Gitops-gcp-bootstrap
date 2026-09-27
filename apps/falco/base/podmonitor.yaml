@@ -1,0 +1,17 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: falco-metrics
+  namespace: falco
+spec:
+  namespaceSelector:
+    matchNames:
+      - falco
+  selector:
+    matchLabels:
+      name: falco
+  podMetricsEndpoints:
+    - path: /metrics
+      port: web
+      interval: 10m
+      scrapeTimeout: 30s

@@ -1,0 +1,17 @@
+{{- $resources := .Values.waypointResources | default dict -}}
+{{- $telemetry := $resources.telemetry | default dict -}}
+{{- if and ($resources.enabled | default true) ($telemetry.enabled | default true) }}
+---
+apiVersion: telemetry.istio.io/v1
+kind: Telemetry
+metadata:
+  name: {{ include "global-networking-policies.waypointTelemetryName" . }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: {{ include "global-networking-policies.waypointName" . }}
+  accessLogging:
+    {{- toYaml ($telemetry.accessLogging | default list) | nindent 4 }}
+{{- end }}

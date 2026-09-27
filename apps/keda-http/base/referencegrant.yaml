@@ -1,0 +1,28 @@
+---
+# ReferenceGrant: allow HTTPRoutes in workload namespaces to set a backendRef
+# that targets a Service in this (keda) namespace.
+#
+# Required because the KEDA HTTP add-on interceptor proxy lives here, but the
+# HTTPRoute that sends production traffic at it lives in each application's
+# own namespace. Without this grant the cross-namespace backendRef is
+# rejected by the Gateway API implementation.
+#
+# Pattern: one entry per source namespace under `spec.from`. Add a new entry
+# for every workload that wants to be put behind the interceptor.
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata:
+  name: allow-workloads-to-ref-interceptor
+  namespace: keda
+spec:
+  from:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      namespace: demo-web-app
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      namespace: pin-ain-conv-int-api
+  to:
+    - group: ""
+      kind: Service
+      name: keda-add-ons-http-interceptor-proxy

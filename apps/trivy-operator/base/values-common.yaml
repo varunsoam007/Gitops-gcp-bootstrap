@@ -1,0 +1,168 @@
+# Shared Trivy Operator configuration for all environments
+# Environment-specific overrides go in envs/<env>/values-additional.yaml
+
+tolerations:
+  - effect: NoSchedule
+    key: kubernetes.azure.com/scalesetpriority
+    operator: Equal
+    value: spot
+
+# Prefer spot nodes for operator pod to reduce costs
+affinity:
+  nodeAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        preference:
+          matchExpressions:
+            - key: karpenter.sh/capacity-type
+              operator: In
+              values:
+                - spot
+
+# Use thirdparty ACR cache for all images
+image:
+  registry: crpinthirdpartymgtintuks001.azurecr.io
+  repository: aquasec/trivy-operator
+
+operator:
+  builtInTrivyServer: true
+  # Enable detailed vulnerability ID metrics for CVE-level tracking
+  # WARNING: This can significantly increase metric cardinality
+  metricsVulnIdEnabled: true
+  metricsConfigAuditInfo: true  # Enable detailed config audit check metrics
+  # Pod labels for workload identity
+  podLabels:
+    azure.workload.identity/use: "true"
+
+trivy:
+  # Use thirdparty ACR for trivy scanner image
+  image:
+    registry: crpinthirdpartymgtintuks001.azurecr.io
+    repository: aquasec/trivy
+    tag: "0.69.3"
+  ignoreUnfixed: true
+  severity: HIGH,CRITICAL
+  # Use emptyDir instead of PVC
+  storageClassEnabled: false
+  # Scan job resource limits to prevent OOM errors on large images
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+  # =============================================================================
+  # CVE Ignore List - False Positives
+  # =============================================================================
+  # These CVEs are flagged due to Go module pseudo-version detection issues.
+  # Trivy scans compiled Go binaries and extracts module dependencies. When it
+  # sees internal packages (e.g., github.com/grafana/grafana) with pseudo-versions
+  # like "v0.0.0-20250718201843-ccd7b6ce7ea6+dirty", it cannot determine the
+  # actual version and conservatively flags all historical CVEs.
+  #
+  # Our actual versions (Grafana 12.1.0, Istio 1.27.x) are well beyond the
+  # fixed versions for all these CVEs.
+  # =============================================================================
+  ignoreFile:
+    # -------------------------------------------------------------------------
+    # Grafana False Positives
+    # -------------------------------------------------------------------------
+    # Detected on: grafana/grafana:12.1.0
+    # Reported version: github.com/grafana/grafana v0.0.0-20250718201843-ccd7b6ce7ea6+dirty
+    # Root cause: Go pseudo-version from internal package imports
+    # Actual version 12.1.0 is far beyond all fixed versions listed below.
+    # -------------------------------------------------------------------------
+
+    # CVE-2018-15727: Authentication bypass via LDAP/OAuth
+    # Fixed in: 4.6.4, 5.2.3 | Our version: 12.1.0 | Status: NOT AFFECTED
+    - CVE-2018-15727
+
+    # CVE-2020-12458: World-readable grafana.db information disclosure
+    # Fixed in: 7.2.1 | Our version: 12.1.0 | Status: NOT AFFECTED
+    - CVE-2020-12458
+
+    # CVE-2021-39226: Snapshot authentication bypass
+    # Fixed in: 7.5.11, 8.1.6 | Our version: 12.1.0 | Status: NOT AFFECTED
+    - CVE-2021-39226
+
+    # CVE-2022-35957: Admin to server admin escalation with auth proxy
+    # Fixed in: 9.1.6, 9.0.9, 8.5.13 | Our version: 12.1.0 | Status: NOT AFFECTED
+    - CVE-2022-35957
+
+    # CVE-2022-39307: User enumeration via forget password
+    # Fixed in: 9.2.4, 8.5.15 | Our version: 12.1.0 | Status: NOT AFFECTED
+    - CVE-2022-39307
+
+    # CVE-2023-2801: Data source proxy race condition
+    # Fixed in: 9.4.12, 9.5.3 | Our version: 12.1.0 | Status: NOT AFFECTED
+    - CVE-2023-2801
+
+    # CVE-2023-3128: Account takeover with Azure AD OAuth
+    # Fixed in: 9.4.13, 9.3.16, 9.2.20, 8.5.27 | Our version: 12.1.0 | Status: NOT AFFECTED
+    - CVE-2023-3128
+
+    # CVE-2025-6023: Grafana vulnerability (pseudo-version mismatch)
+    # Reported fixed version format invalid, false positive from pseudo-version
+    - CVE-2025-6023
+
+    # -------------------------------------------------------------------------
+    # Istio False Positives
+    # -------------------------------------------------------------------------
+    # Detected on: Istio components (istiod, ztunnel, etc.)
+    # Reported version: istio.io/istio v0.0.0-20250903103000-4ac359928d06
+    # Root cause: Go pseudo-version from internal package imports
+    # Actual version 1.27.x is far beyond all fixed versions listed below.
+    # -------------------------------------------------------------------------
+
+    # CVE-2019-14993: Envoy regex DoS for long URIs
+    # Fixed in: 1.1.13, 1.2.4 | Our version: 1.27.x | Status: NOT AFFECTED
+    - CVE-2019-14993
+
+    # CVE-2021-39155: Authorization bypass due to case insensitive host comparison
+    # Fixed in: 1.9.8, 1.10.4, 1.11.1 | Our version: 1.27.x | Status: NOT AFFECTED
+    - CVE-2021-39155
+
+    # CVE-2021-39156: Authorization bypass with URI fragment
+    # Fixed in: 1.9.8, 1.10.4, 1.11.1 | Our version: 1.27.x | Status: NOT AFFECTED
+    - CVE-2021-39156
+
+    # CVE-2022-23635: Unauthenticated control plane DoS
+    # Fixed in: 1.13.1, 1.12.4, 1.11.7 | Our version: 1.27.x | Status: NOT AFFECTED
+    - CVE-2022-23635
+
+trivyOperator:
+  # Disabled due to segfault issues with compressed logs
+  # See: https://github.com/aquasecurity/trivy-operator/issues/2659
+  scanJobCompressLogs: false
+  # Exclude AKS system images that can't be scanned (Windows images, MCR authentication issues)
+  excludeImages: "mcr.microsoft.com/oss/kubernetes-csi/azuredisk-csi:*,mcr.microsoft.com/oss/kubernetes-csi/azurefile-csi:*,mcr.microsoft.com/oss/kubernetes-csi/csi-node-driver-registrar:*,mcr.microsoft.com/oss/kubernetes-csi/livenessprobe:*,mcr.microsoft.com/aks/*,mcr.microsoft.com/azuremonitor/*,mcr.microsoft.com/oss/kubernetes/azure-cloud-node-manager:*,mcr.microsoft.com/oss/kubernetes/azure-cloud-controller-manager:*"
+  scanJobPodTemplateLabels: "azure.workload.identity/use=true"
+  scanJobServiceAccount: trivy-operator
+  scanJobAutomountServiceAccountToken: true
+  # Prefer spot nodes for scan jobs to reduce costs, but allow fallback to on-demand
+  scanJobAffinity:
+    nodeAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          preference:
+            matchExpressions:
+              - key: karpenter.sh/capacity-type
+                operator: In
+                values:
+                  - spot
+
+# Service configuration for metrics endpoint
+service:
+  # Headless service for direct pod access
+  headless: true
+  # CRITICAL: Must match container port (8080), not default 80
+  # Without this, ServiceMonitor scrapes fail with "Connection refused"
+  metricsPort: 8080
+  type: ClusterIP
+
+serviceMonitor:
+  enabled: true
+  namespace: "trivy-operator"
+  interval: 5m
+  honorLabels: true

@@ -1,0 +1,19 @@
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-options: ServerSideApply=true
+  name: karpenter-controllers-allocation
+  labels:
+    dashboards: "grafana"
+spec:
+  instanceSelector:
+    matchLabels:
+      dashboards: "grafana"
+  folder: "Platform Components"
+  url: https://raw.githubusercontent.com/aws/karpenter-provider-aws/main/website/content/en/v1.14/getting-started/getting-started-with-karpenter/karpenter-controllers-allocation.json
+  datasources:
+    - inputName: datasource
+      datasourceName: mimir
+    - inputName: DS_PROMETHEUS
+      datasourceName: mimir

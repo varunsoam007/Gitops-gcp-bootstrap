@@ -1,0 +1,15 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+helmGlobals:
+  chartHome: ../../../../charts
+
+helmCharts:
+  - name: kube-state-metrics-8.3.0
+    releaseName: kube-state-metrics
+    namespace: kube-state-metrics
+    additionalValuesFiles:
+      - values-additional.yaml

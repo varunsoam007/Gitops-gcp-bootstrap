@@ -1,0 +1,12 @@
+# Environment-specific overrides for devm-k01
+
+# Resources: req==lim (VPA upper: ~128Mi)
+reloader:
+  deployment:
+    resources:
+      requests:
+        cpu: 15m
+        memory: 100Mi
+      limits:
+        cpu: 15m
+        memory: 100Mi

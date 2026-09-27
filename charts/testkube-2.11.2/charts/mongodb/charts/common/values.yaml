@@ -1,0 +1,6 @@
+# based on Bitnami Common helm chart
+
+## It is required by CI/CD tools and processes.
+## @skip exampleValue
+##
+exampleValue: common-chart

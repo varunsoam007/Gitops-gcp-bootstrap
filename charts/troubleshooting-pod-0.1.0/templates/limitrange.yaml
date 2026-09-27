@@ -1,0 +1,16 @@
+{{- if .Values.guardrails.limitRange.enabled }}
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: {{ .Values.namespace.name }}
+  namespace: {{ .Values.namespace.name }}
+spec:
+  limits:
+    - type: Container
+      defaultRequest:
+        {{- toYaml .Values.guardrails.limitRange.defaultRequest | nindent 8 }}
+      default:
+        {{- toYaml .Values.guardrails.limitRange.default | nindent 8 }}
+      max:
+        {{- toYaml .Values.guardrails.limitRange.max | nindent 8 }}
+{{- end }}

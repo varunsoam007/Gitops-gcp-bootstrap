@@ -1,0 +1,110 @@
+{{- $defaults := .Values.auth_defaults | default dict }}
+{{- if .Values.auth }}
+{{- if .Values.auth.enabled }}
+{{- $mode := default (default "interactive" $defaults.mode) .Values.auth.mode }}
+{{- if eq $mode "interactive" }}
+{{- $requiredRoles := .Values.auth.requiredRoles | default list }}
+{{- if $requiredRoles }}
+{{- $hostname := required "auth.hostname is required when auth.enabled is true" .Values.auth.hostname }}
+{{- $gatewayNamespace := default $defaults.gatewayNamespace .Values.auth.gatewayNamespace }}
+{{- $excludePaths := default $defaults.excludePaths .Values.auth.excludePaths }}
+{{/*
+  Role enforcement for interactive (oauth2-proxy) auth.
+
+  oauth2-proxy authenticates the user and injects the comma-joined
+  `x-auth-request-groups` header AFTER Istio's native RBAC has already run, so a
+  plain AuthorizationPolicy cannot reliably match a required role that sits in
+  the MIDDLE of that header: Istio's string matcher only supports exact,
+  prefix (`x*`), suffix (`*x`) and presence (`*`) — there is no "contains", and
+  a `*role*` pattern is silently parsed as a suffix match on the literal
+  `role*`, so users whose required role is neither first nor last are wrongly
+  denied.
+
+  This EnvoyFilter inserts an HTTP RBAC filter immediately before the router
+  (i.e. after ext_authz has populated the header) and matches each required
+  role as a complete, comma-delimited element with an RE2 regex, regardless of
+  its position in the header.
+*/}}
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: {{ .Release.Name }}-required-roles
+  namespace: {{ $gatewayNamespace }}
+  labels:
+    {{- include "auth-templates.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-options: ServerSideApply=true
+spec:
+  configPatches:
+    - applyTo: HTTP_FILTER
+      match:
+        context: GATEWAY
+        listener:
+          filterChain:
+            filter:
+              name: envoy.filters.network.http_connection_manager
+              subFilter:
+                name: envoy.filters.http.router
+      patch:
+        operation: INSERT_BEFORE
+        value:
+          name: {{ printf "%s.required-roles" .Release.Name | quote }}
+          typed_config:
+            "@type": type.googleapis.com/envoy.extensions.filters.http.rbac.v3.RBAC
+            rules:
+              action: DENY
+              policies:
+                missing-required-role:
+                  permissions:
+                    - and_rules:
+                        rules:
+                          # Only guard this app's host; requests to other hosts
+                          # on the shared gateway fall through untouched.
+                          - header:
+                              name: ":authority"
+                              string_match:
+                                exact: {{ $hostname | quote }}
+                          # Never guard the oauth2 callback, health or metrics
+                          # paths (plus any caller-supplied excludePaths).
+                          - not_rule:
+                              or_rules:
+                                rules:
+                                  - url_path:
+                                      path:
+                                        prefix: "/oauth2"
+                                  - url_path:
+                                      path:
+                                        exact: "/up"
+                                  - url_path:
+                                      path:
+                                        exact: "/metrics"
+                                  {{- range $excludePaths }}
+                                  {{- if hasSuffix "*" . }}
+                                  - url_path:
+                                      path:
+                                        prefix: {{ trimSuffix "*" . | quote }}
+                                  {{- else }}
+                                  - url_path:
+                                      path:
+                                        exact: {{ . | quote }}
+                                  {{- end }}
+                                  {{- end }}
+                  principals:
+                    # Deny when the groups header contains NONE of the required
+                    # roles. Each regex matches the role as a whole element:
+                    # start-or-comma before, comma-or-end after.
+                    - not_id:
+                        or_ids:
+                          ids:
+                            {{- range $requiredRoles }}
+                            - header:
+                                name: "x-auth-request-groups"
+                                string_match:
+                                  safe_regex:
+                                    regex: {{ printf "(.*,)?%s(,.*)?" (. | replace "." "\\.") | toJson }}
+                            {{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

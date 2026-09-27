@@ -1,0 +1,29 @@
+annotations:
+  category: Database
+  images: |
+    - name: kubectl
+      image: testkube-cloud-372110/testkube/kubectl:1.35.4
+    - name: mongodb
+      image: us-east1-docker.pkg.dev/testkube-cloud-372110/testkube/mongodb:8.2.7
+    - name: nginx
+      image: docker.io/nginx:1.29.2-alpine
+    - name: os-shell
+      image: docker.io/bitnami/os-shell:12-debian-12-r32
+  licenses: Apache-2.0
+apiVersion: v2
+appVersion: 8.3.1
+dependencies:
+- name: common
+  repository: file://../../common
+  version: 2.26.0
+description: Testkube helm chart to deploy MongoDB instance needed to store all states
+  of Testkube platform and components.
+maintainers:
+- email: support@testkube.io
+  name: Testkube
+  url: https://github.com/kubeshop/testkube-thirdparty-artifacts
+name: mongodb
+sources:
+- https://github.com/kubeshop/testkube-thirdparty-artifacts/tree/main/mongodb
+- https://mongodb.org
+version: 8.3.1-0

@@ -1,0 +1,12 @@
+# Environment: devm-k01 - Development cluster
+
+nodeSelector:
+  karpenter.sh/capacity-type: on-demand
+
+resources:
+  requests:
+    cpu: 23m
+    memory: 363Mi
+  limits:
+    cpu: 24m
+    memory: 390Mi

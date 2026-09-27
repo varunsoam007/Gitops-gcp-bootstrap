@@ -1,0 +1,150 @@
+# Grafana Alloy configuration for devm-k01 - TRACES ONLY
+# Dedicated OTLP receiver and export pipeline to Tempo distributed.
+# Client endpoints:
+# - In-cluster OTLP/gRPC: alloy-traces.alloy.svc.cluster.local:4317
+# - In-cluster OTLP/HTTP: http://alloy-traces.alloy.svc.cluster.local:4318/v1/traces
+# - Internal gateway OTLP/HTTP: https://alloy-traces.k01.devm.corp.pinpetuk.net/v1/traces
+
+controller:
+  type: deployment
+  replicas: 2
+  priorityClassName: observability-critical
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: karpenter.sh/capacity-type
+                operator: In
+                values:
+                  - on-demand
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchLabels:
+              app.kubernetes.io/instance: alloy-traces
+          topologyKey: kubernetes.io/hostname
+  topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: kubernetes.io/hostname
+      whenUnsatisfiable: ScheduleAnyway
+      labelSelector:
+        matchLabels:
+          app.kubernetes.io/instance: alloy-traces
+
+# Internal route for trace ingestion from trusted callers outside the cluster.
+# Exposes OTLP/HTTP path only; OTLP/gRPC stays cluster-internal.
+extraObjects:
+  - apiVersion: gateway.networking.k8s.io/v1
+    kind: HTTPRoute
+    metadata:
+      name: alloy-traces
+      namespace: alloy
+      annotations:
+        argocd.argoproj.io/sync-options: ServerSideApply=true
+    spec:
+      parentRefs:
+        - name: shared-gateway-int
+          namespace: gateway-api
+          group: gateway.networking.k8s.io
+          kind: Gateway
+      hostnames:
+        - alloy-traces.k01.devm.corp.pinpetuk.net
+      rules:
+        - matches:
+            - path:
+                type: PathPrefix
+                value: /v1/traces
+          backendRefs:
+            - group: ""
+              kind: Service
+              name: alloy-traces
+              port: 4318
+              weight: 1
+
+configReloader:
+  resources:
+    requests:
+      cpu: 11m
+      memory: 50Mi
+    limits:
+      cpu: 11m
+      memory: 50Mi
+
+alloy:
+  extraPorts:
+    - name: otlp-grpc
+      port: 4317
+      targetPort: 4317
+      protocol: TCP
+    - name: otlp-http
+      port: 4318
+      targetPort: 4318
+      protocol: TCP
+
+  resources:
+    requests:
+      cpu: 11m
+      memory: 75Mi
+    limits:
+      cpu: 11m
+      memory: 78Mi
+
+  configMap:
+    create: true
+    content: |
+      logging {
+        level  = "info"
+        format = "logfmt"
+      }
+
+      // ===========================================
+      // OpenTelemetry Traces Pipeline to Tempo
+      // ===========================================
+
+      otelcol.receiver.otlp "traces" {
+        grpc {
+          endpoint = "0.0.0.0:4317"
+        }
+
+        http {
+          endpoint = "0.0.0.0:4318"
+        }
+
+        output {
+          traces = [otelcol.processor.batch.tempo_traces.input]
+        }
+      }
+
+      otelcol.processor.batch "tempo_traces" {
+        timeout         = "5s"
+        send_batch_size = 1024
+
+        output {
+          traces = [otelcol.exporter.otlp.tempo.input]
+        }
+      }
+
+      otelcol.exporter.otlp "tempo" {
+        client {
+          endpoint = "tempo-distributor.tempo.svc.cluster.local:4317"
+
+          tls {
+            insecure             = true
+            insecure_skip_verify = true
+          }
+        }
+
+        retry_on_failure {
+          enabled          = true
+          initial_interval = "1s"
+          max_interval     = "30s"
+          max_elapsed_time = "5m"
+        }
+
+        sending_queue {
+          enabled       = true
+          num_consumers = 8
+          queue_size    = 10000
+        }
+      }

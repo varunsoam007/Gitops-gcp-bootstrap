@@ -1,0 +1,99 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+  - es-grafana-shared.yaml
+  - ds-testkube-postgres.yaml
+  - dashboard-testkube-postgres.yaml
+  - httproute.yaml
+  - grafana.yaml
+  - ss-kv-pin-aks-devm-int-uks.yaml
+
+# Patch Loki datasource with devm-k01 tenant ID
+patches:
+  - path: ds-loki-patch.yaml
+    target:
+      kind: GrafanaDatasource
+      name: loki
+
+# Generate ConfigMap from properties file
+configMapGenerator:
+  - name: grafana-external-config
+    namespace: grafana-operator
+    options:
+      disableNameSuffixHash: true
+    envs:
+      - config.properties
+
+# Replace placeholder values in grafana.yaml
+replacements:
+  # Client ID
+  - source:
+      kind: ConfigMap
+      name: grafana-external-config
+      fieldPath: data.app_client_id
+    targets:
+      - select:
+          kind: Grafana
+          name: grafana
+        fieldPaths:
+          - spec.config.auth\.azuread.client_id
+
+  # Authorize URL
+  - source:
+      kind: ConfigMap
+      name: grafana-external-config
+      fieldPath: data.azure_authorize_url
+    targets:
+      - select:
+          kind: Grafana
+          name: grafana
+        fieldPaths:
+          - spec.config.auth\.azuread.auth_url
+
+  # Token URL
+  - source:
+      kind: ConfigMap
+      name: grafana-external-config
+      fieldPath: data.azure_token_url
+    targets:
+      - select:
+          kind: Grafana
+          name: grafana
+        fieldPaths:
+          - spec.config.auth\.azuread.token_url
+
+  - source:
+      kind: ConfigMap
+      name: grafana-external-config
+      fieldPath: data.client_id
+    targets:
+      - select:
+          kind: Grafana
+          name: grafana
+        fieldPaths:
+          - spec.serviceAccount.metadata.annotations.[azure.workload.identity/client-id]
+
+  # Client ID for init container (ACR auth)
+  - source:
+      kind: ConfigMap
+      name: grafana-external-config
+      fieldPath: data.client_id
+    targets:
+      - select:
+          kind: Grafana
+          name: grafana
+        fieldPaths:
+          - spec.deployment.spec.template.spec.initContainers.[name=load-plugins].env.[name=AZURE_CLIENT_ID].value
+
+  - source:
+      kind: ConfigMap
+      name: grafana-external-config
+      fieldPath: data.tenant_id
+    targets:
+      - select:
+          kind: Grafana
+          name: grafana
+        fieldPaths:
+          - spec.config.auth\.azuread.allowed_organizations

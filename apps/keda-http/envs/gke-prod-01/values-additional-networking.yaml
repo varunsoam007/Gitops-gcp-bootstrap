@@ -1,0 +1,57 @@
+networkPolicy:
+  ingress:
+    policyFromCatalogue:
+      - allow-same-namespace
+      - allow-gateway-api
+  egress:
+    policyFromCatalogue:
+      - azure-mgmt
+
+waypoint:
+  name: keda-waypoint
+  namespace: keda
+
+waypointResources:
+  enabled: true
+  gateway:
+    labels:
+      istio.io/waypoint-for: service
+    infrastructure:
+      enabled: true
+  configMap:
+    enabled: true
+    deployment:
+      agentLogLevel: "default:debug"
+      proxyLogLevel: "debug"
+      proxyComponentLogLevel: "misc:debug"
+      proxyConfigJson: '{"accessLogFile":"/dev/stdout","accessLogEncoding":"JSON"}'
+      proxyResources:
+        requests:
+          cpu: 15m
+          memory: 100Mi
+        limits:
+          cpu: 15m
+          memory: 100Mi
+  telemetry:
+    enabled: true
+
+peerAuthentication:
+  enabled: true
+  name: default
+  mode: PERMISSIVE
+
+ingressPolicyCatalogue:
+  allow-same-namespace:
+    targetService: keda-add-ons-http-interceptor-proxy
+    rules:
+      - from:
+          namespaces:
+            - keda
+            - kube-system
+  allow-gateway-api:
+    targetService: keda-add-ons-http-interceptor-proxy
+    rules:
+      - from:
+          namespaces:
+            - gateway-api
+            - demo-web-app

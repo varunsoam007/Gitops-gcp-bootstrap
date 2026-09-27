@@ -1,0 +1,59 @@
+fullnameOverride: external-dns-public
+
+# Resources: req==lim (VPA upper: ~128Mi)
+resources:
+  requests:
+    cpu: 15m
+    memory: 100Mi
+  limits:
+    cpu: 15m
+    memory: 100Mi
+
+# Remove this once the external-dns chart comes with 0.18.0 or higher
+# image:
+#   repository: registry.k8s.io/external-dns/external-dns
+#   tag: v0.18.0
+
+nodeSelector:
+  karpenter.sh/capacity-type: on-demand
+
+podLabels:
+  azure.workload.identity/use: "true"
+
+serviceAccount:
+  name: external-dns
+  annotations:
+    azure.workload.identity/client-id: 441dce6c-7055-457f-8b9f-8b914f2f1921 # app id for: msi-pin-xdns-devm-int-uks
+
+domainFilters:
+  # The public copy of the internal corp zone exists only so cert-manager can
+  # solve ACME DNS-01 challenges (it writes _acme-challenge TXT records itself).
+  # It's intentionally excluded here so external-dns-public never publishes
+  # internal hostnames publicly; those records are managed by external-dns-private.
+  - k01.devm.pinpetuk.net
+
+extraArgs:
+  - --azure-zones-cache-duration=10m
+  # See https://github.com/kubernetes-sigs/external-dns/issues/5358
+
+extraVolumes:
+  - name: azure-config-file
+    configMap:
+      name: azure-config-file
+
+extraVolumeMounts:
+  - name: azure-config-file
+    mountPath: /etc/kubernetes
+    readOnly: true
+
+provider:
+  name: azure
+
+sources:
+  - service
+  - gateway-httproute
+  - gateway-grpcroute
+  # AKS' Gateway API doesn't support TLSRoute, TCPRoute, or UDPRoute yet.
+  # - gateway-tcproute
+  # - gateway-udproute
+  - istio-virtualservice

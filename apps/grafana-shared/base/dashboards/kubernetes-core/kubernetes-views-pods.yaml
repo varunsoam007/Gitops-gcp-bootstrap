@@ -1,0 +1,19 @@
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-options: ServerSideApply=true
+  name: kubernetes-views-pods
+  labels:
+    dashboards: "grafana"
+spec:
+  instanceSelector:
+    matchLabels:
+      dashboards: "grafana"
+  folderRef: kubernetes-core
+  grafanaCom:
+    id: 15760
+    revision: 39
+  datasources:
+    - inputName: DS_PROMETHEUS
+      datasourceName: mimir

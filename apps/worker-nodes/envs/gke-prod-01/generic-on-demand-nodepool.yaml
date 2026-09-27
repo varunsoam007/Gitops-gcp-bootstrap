@@ -1,0 +1,59 @@
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: generic-on-demand
+  annotations:
+    kubernetes.io/description: "On-demand NodePool for stable workloads"
+spec:
+  weight: 10
+  template:
+    spec:
+      requirements:
+        - key: kubernetes.io/os
+          operator: In
+          values: ["linux"]
+        - key: kubernetes.io/arch
+          operator: In
+          values: ["amd64"]
+        - key: kubernetes.azure.com/mode
+          operator: In
+          values: ["user"]
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values: ["on-demand"]
+        - key: karpenter.azure.com/sku-series
+          operator: In
+          values: ["Das_v5", "Eas_v5"]
+        - key: karpenter.azure.com/sku-cpu
+          operator: Gte
+          values: ["2"]
+        - key: karpenter.azure.com/sku-cpu
+          operator: Lte
+          values: ["16"]
+        - key: karpenter.azure.com/sku-memory
+          operator: Gte
+          values: ["8192"]
+        - key: karpenter.azure.com/sku-memory
+          operator: Lte
+          values: ["65536"]
+        - key: karpenter.azure.com/sku-storage-premium-capable
+          operator: In
+          values: ["true"]
+        - key: karpenter.azure.com/sku-networking-accelerated
+          operator: In
+          values: ["true"]
+        - key: topology.kubernetes.io/zone
+          operator: In
+          values: ["uksouth-1", "uksouth-2", "uksouth-3"]
+      nodeClassRef:
+        group: karpenter.azure.com
+        kind: AKSNodeClass
+        name: default
+  limits:
+    cpu: "48"
+    memory: 192Gi
+  disruption:
+    consolidationPolicy: WhenEmpty
+    consolidateAfter: 10m
+    budgets:
+      - nodes: "10%"

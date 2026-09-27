@@ -1,0 +1,16 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+helmGlobals:
+  chartHome: ../../../../charts
+
+helmCharts:
+  - name: opencost-2.4.1
+    releaseName: opencost
+    namespace: opencost
+    additionalValuesFiles:
+      - ../../base/values-common.yaml
+      - values-additional.yaml

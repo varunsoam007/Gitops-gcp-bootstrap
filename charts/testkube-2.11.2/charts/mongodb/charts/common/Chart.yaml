@@ -1,0 +1,21 @@
+annotations:
+  category: Infrastructure
+  licenses: Apache-2.0
+apiVersion: v2
+appVersion: 2.26.0
+description: Testkube helm chart for common configurations needed to deploy Testkube
+  platform (based on Common Bitnami helm chart).
+keywords:
+- common
+- helper
+- template
+- function
+maintainers:
+- email: support@testkube.io
+  name: Testkube
+  url: https://github.com/kubeshop/testkube-thirdparty-artifacts
+name: common
+sources:
+- https://github.com/kubeshop/testkube-thirdparty-artifacts/tree/main/common
+type: library
+version: 2.26.0

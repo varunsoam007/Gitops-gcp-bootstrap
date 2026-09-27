@@ -1,0 +1,248 @@
+# Environment: devm-k01 - Development cluster
+
+# Tempo 3.x write path runs through Kafka.
+ingest:
+  kafka:
+    address: tempo-kafka-bootstrap.strimzi-kafka.svc.cluster.local:9092
+    topic: tempo-traces
+    auto_create_topic_enabled: true
+    auto_create_topic_default_partitions: 1
+
+# 14-day retention in lower environment.
+backendScheduler:
+  config:
+    provider:
+      compaction:
+        compaction:
+          block_retention: 336h
+  affinity: |
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: karpenter.sh/capacity-type
+                operator: In
+                values:
+                  - on-demand
+  resources:
+    requests:
+      cpu: 15m
+      memory: 100Mi
+    limits:
+      cpu: 15m
+      memory: 100Mi
+
+backendWorker:
+  replicas: 1
+  affinity: |
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: karpenter.sh/capacity-type
+                operator: In
+                values:
+                  - on-demand
+  resources:
+    requests:
+      cpu: 15m
+      memory: 156Mi
+    limits:
+      cpu: 30m
+      memory: 512Mi
+
+blockBuilder:
+  replicas: 1
+  affinity: |
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: karpenter.sh/capacity-type
+                operator: In
+                values:
+                  - on-demand
+  resources:
+    requests:
+      cpu: 15m
+      memory: 100Mi
+    limits:
+      cpu: 15m
+      memory: 100Mi
+
+distributor:
+  replicas: 2
+  podDisruptionBudget:
+    enabled: true
+  maxUnavailable: 1
+  affinity: |
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: karpenter.sh/capacity-type
+                operator: In
+                values:
+                  - on-demand
+  topologySpreadConstraints: |
+    - maxSkew: 1
+      topologyKey: kubernetes.io/hostname
+      whenUnsatisfiable: ScheduleAnyway
+  resources:
+    requests:
+      cpu: 15m
+      memory: 100Mi
+    limits:
+      cpu: 15m
+      memory: 100Mi
+  # Guard against oversized span/resource attributes causing query memory blowups.
+  config:
+    max_attribute_bytes: 2048
+
+liveStore:
+  replicas: 1
+  podDisruptionBudget:
+    enabled: true
+  maxUnavailable: 1
+  affinity: |
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: karpenter.sh/capacity-type
+                operator: In
+                values:
+                  - on-demand
+  topologySpreadConstraints: |
+    - maxSkew: 1
+      topologyKey: kubernetes.io/hostname
+      whenUnsatisfiable: DoNotSchedule
+  resources:
+    requests:
+      cpu: 15m
+      memory: 156Mi
+    limits:
+      cpu: 15m
+      memory: 168Mi
+
+querier:
+  replicas: 2
+  podDisruptionBudget:
+    enabled: true
+  maxUnavailable: 1
+  affinity: |
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: karpenter.sh/capacity-type
+                operator: In
+                values:
+                  - on-demand
+  topologySpreadConstraints: |
+    - maxSkew: 1
+      topologyKey: kubernetes.io/hostname
+      whenUnsatisfiable: DoNotSchedule
+  resources:
+    requests:
+      cpu: 15m
+      memory: 100Mi
+    limits:
+      cpu: 15m
+      memory: 100Mi
+
+queryFrontend:
+  replicas: 2
+  podDisruptionBudget:
+    enabled: true
+  maxUnavailable: 1
+  affinity: |
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: karpenter.sh/capacity-type
+                operator: In
+                values:
+                  - on-demand
+  topologySpreadConstraints: |
+    - maxSkew: 1
+      topologyKey: kubernetes.io/hostname
+      whenUnsatisfiable: DoNotSchedule
+  resources:
+    requests:
+      cpu: 15m
+      memory: 100Mi
+    limits:
+      cpu: 15m
+      memory: 100Mi
+
+memcached:
+  replicas: 1
+  affinity: |
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: karpenter.sh/capacity-type
+                operator: In
+                values:
+                  - on-demand
+  resources:
+    requests:
+      cpu: 15m
+      memory: 156Mi
+    limits:
+      cpu: 15m
+      memory: 168Mi
+
+# Metrics from traces for RED metrics + service graph topology.
+metricsGenerator:
+  enabled: true
+  replicas: 1
+  affinity: |
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: karpenter.sh/capacity-type
+                operator: In
+                values:
+                  - on-demand
+  resources:
+    requests:
+      cpu: 15m
+      memory: 100Mi
+    limits:
+      cpu: 15m
+      memory: 100Mi
+  config:
+    registry:
+      collection_interval: 30s
+      stale_duration: 15m
+    processor:
+      service_graphs:
+        enable_virtual_node_label: true
+    storage:
+      remote_write:
+        - url: http://mimir-gateway.mimir.svc.cluster.local:80/api/v1/push
+          send_exemplars: true
+
+# Metrics-generator processors are activated via overrides in Tempo 3.
+overrides:
+  defaults:
+    metrics_generator:
+      processors:
+        - service-graphs
+        - span-metrics
+        - host-info
+      # Cardinality guardrails for scale and cost control.
+      max_active_series: 50000
+      # Measure impact before enforcing span name clustering in production.
+      span_name_sanitization: dry_run
+
+# Recommended with metricsGenerator.kind=Deployment to speed partition handoff.
+tempo:
+  structuredConfig:
+    metrics_generator:
+      leave_consumer_group_on_shutdown: true

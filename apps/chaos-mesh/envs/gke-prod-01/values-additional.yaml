@@ -1,0 +1,44 @@
+# Keep controller on standard nodes; daemonset still runs on all Linux nodes.
+controllerManager:
+  nodeSelector:
+    karpenter.sh/capacity-type: on-demand
+  resources:
+    requests:
+      cpu: 15m
+      memory: 100Mi
+    limits:
+      cpu: 15m
+      memory: 100Mi
+
+dnsServer:
+  nodeSelector:
+    karpenter.sh/capacity-type: on-demand
+  resources:
+    requests:
+      cpu: 15m
+      memory: 100Mi
+    limits:
+      cpu: 15m
+      memory: 100Mi
+
+dashboard:
+  nodeSelector:
+    karpenter.sh/capacity-type: on-demand
+  resources:
+    requests:
+      cpu: 15m
+      memory: 100Mi
+    limits:
+      cpu: 15m
+      memory: 100Mi
+
+chaosDaemon:
+  nodeSelector:
+    karpenter.sh/capacity-type: on-demand
+  resources:
+    requests:
+      cpu: 23m
+      memory: 100Mi
+    limits:
+      cpu: 23m
+      memory: 100Mi

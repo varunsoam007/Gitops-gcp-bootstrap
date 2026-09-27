@@ -1,0 +1,219 @@
+# Default values for gateway-api chart
+# This is a YAML-formatted file.
+
+# CRD reference - https://github.com/kubernetes-sigs/gateway-api
+# Chart version now following gateway-api releases as no offical helm chart exists.
+# https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.6.1/experimental-install.yaml
+
+# Namespace configuration
+namespace:
+  name: gateway-api
+
+# Environment configuration
+environment: "mgt-k01"
+cluster: "k01"
+domain: "pinpetuk.net"
+
+# Gateway API CRDs
+gatewayApi:
+  version: "v1.6.1"
+  enabled: true
+
+# External Gateway configuration
+externalGateway:
+  enabled: true
+  name: "shared-gateway-ext"
+  className: "istio"
+  
+  # Azure Load Balancer configuration
+  loadBalancer:
+    internal: true
+    ipv4: "10.64.121.4"
+    resourceGroup: "rg-pin-mgtcluster-mgt-int-uks-001"
+    subnet: "pin-aksloadbalancer-mgt-int-uks-snet-001"
+    healthProbePath: "/healthz/ready"
+    healthProbePort: "15021"
+  
+  # External DNS configuration
+  externalDns:
+    target: "cfde-pin-fdr-mgt-int-uks-ingress-hnazb3dufhc6f9b0.z01.azurefd.net."
+  
+  # TLS configuration
+  tls:
+    certificateRef: "wildcard-k01-mgt-corp-pinpetuk-net"
+  
+# Internal Gateway configuration
+internalGateway:
+  enabled: true
+  name: "shared-gateway-int"
+  className: "istio"
+  annotations:
+    istio.io/ingress-use-waypoint: 'true'
+  
+  # Azure Load Balancer configuration
+  loadBalancer:
+    internal: true
+    ipv4: "10.64.121.5"
+    resourceGroup: "rg-pin-mgtcluster-mgt-int-uks-001"
+    subnet: "pin-aksloadbalancer-mgt-int-uks-snet-001"
+    healthProbePath: "/healthz/ready"
+    healthProbePort: "15021"
+  
+  # TLS configuration
+  tls:
+    certificateRef: "wildcard-k01-mgt-pinpetuk-net"
+  
+  # Hostname configuration for listeners
+  hostname: "*.k01.mgt.corp.pinpetuk.net"
+
+# Waypoint Gateway configuration
+waypointGateway:
+  enabled: true
+  name: "shared-waypoint"
+  className: "istio-waypoint"
+  
+  # Egress gateway
+  egress:
+    enabled: true
+    name: "shared-waypoint-egress"
+    className: "istio-waypoint"
+
+# Gateway Options ConfigMaps
+gatewayOptions:
+  external:
+    enabled: true
+    name: "gw-options-ext"
+    data:
+      horizontalPodAutoscaler: |
+        spec:
+          minReplicas: 3
+          maxReplicas: 5
+          metrics:
+          - type: Resource
+            resource:
+              name: cpu
+              target:
+                type: Utilization
+                averageUtilization: 50
+      
+      podDisruptionBudget: |
+        spec:
+          minAvailable: 50%
+          selector:
+            # Match the generated Deployment by label
+            matchLabels:
+              gateway.networking.k8s.io/gateway-name: shared-gateway-ext
+
+      # Deployment template overrides - prevent preemption by lower-priority pods
+      deployment: |
+        spec:
+          template:
+            spec:
+              priorityClassName: observability-critical
+  
+  internal:
+    enabled: true
+    name: "gw-options-int"
+    data:
+      horizontalPodAutoscaler: |
+        spec:
+          minReplicas: 3
+          maxReplicas: 5
+          metrics:
+          - type: Resource
+            resource:
+              name: cpu
+              target:
+                type: Utilization
+                averageUtilization: 50
+
+      podDisruptionBudget: |
+        spec:
+          minAvailable: 50%
+          selector:
+            # Match the generated Deployment by label
+            matchLabels:
+              gateway.networking.k8s.io/gateway-name: shared-gateway-int
+
+      # Deployment template overrides - prevent preemption by lower-priority pods
+      deployment: |
+        spec:
+          template:
+            spec:
+              priorityClassName: observability-critical
+  
+  waypoint:
+    enabled: true
+    name: "gw-options-waypoint"
+    data:
+      horizontalPodAutoscaler: |
+        spec:
+          minReplicas: 3
+          maxReplicas: 5
+          metrics:
+          - type: Resource
+            resource:
+              name: cpu
+              target:
+                type: Utilization
+                averageUtilization: 50
+
+      podDisruptionBudget: |
+        spec:
+          minAvailable: 50%
+          selector:
+            # Match the generated Deployment by label
+            matchLabels:
+              gateway.networking.k8s.io/gateway-name: shared-waypoint
+
+      # Deployment template overrides - prevent preemption by lower-priority pods
+      deployment: |
+        spec:
+          template:
+            spec:
+              priorityClassName: observability-critical
+
+# Certificate configuration
+certificates:
+  - name: "wildcard-k01-mgt-pinpetuk-net"
+    secretName: "wildcard-k01-mgt-pinpetuk-net"
+    dnsNames:
+      - "*.k01.mgt.pinpetuk.net"
+    issuerRef:
+      name: "letsencrypt-prod-k01.mgt.pinpetuk.net"
+      kind: "ClusterIssuer"
+  
+  - name: "wildcard-k01-mgt-corp-pinpetuk-net"
+    secretName: "wildcard-k01-mgt-corp-pinpetuk-net"
+    dnsNames:
+      - "*.k01.mgt.corp.pinpetuk.net"
+    issuerRef:
+      name: "letsencrypt-prod-k01.mgt.corp.pinpetuk.net"
+      kind: "ClusterIssuer"
+
+# Logging configuration
+logging:
+  enabled: true
+  telemetry:
+    name: "enable-access-logging"
+    providers:
+      - name: "envoy"
+
+# Shared deny response rewrite for gateway authz (RBAC and ext_authz/platform-auth)
+authzDenyRewrite:
+  enabled: true
+  # Optional explicit resource name. Leave empty to auto-name from Helm release.
+  name: ""
+  targetPorts:
+    - 80
+    - 443
+    - 15008
+  match:
+    # Envoy ext_authz denied detail string
+    extAuthzDenied: "ext_authz_denied"
+    # Envoy RBAC deny details are prefixed like rbac_access_denied_matched_policy[ns[foo]-policy[bar]-rule[0]]
+    rbacPrefix: "rbac_access_denied_matched_policy"
+  response:
+    contentType: "application/json"
+    error: "unauthorised"
+    message: "You are not permitted to access this resource"

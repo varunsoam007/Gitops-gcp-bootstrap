@@ -1,0 +1,170 @@
+# Shared Loki configuration for all environments
+# Environment-specific overrides go in envs/<env>/values-additional.yaml
+
+# Deploy Loki in Distributed (microservices) mode
+deploymentMode: Distributed
+
+# Global configuration - applies to all distributed components
+global:
+  # Priority class for scheduling preference
+  priorityClassName: observability-critical
+  # Enable environment variable expansion in config
+  extraArgs:
+    - "-config.expand-env=true"
+  # Inject env vars from loki-azure-config into all pods
+  extraEnv:
+    - name: LOKI_STORAGE_ACCOUNT
+      valueFrom:
+        configMapKeyRef:
+          name: loki-azure-config
+          key: storage_account_name
+    - name: LOKI_CHUNKS_CONTAINER
+      valueFrom:
+        configMapKeyRef:
+          name: loki-azure-config
+          key: chunks_container_name
+    - name: LOKI_RULER_CONTAINER
+      valueFrom:
+        configMapKeyRef:
+          name: loki-azure-config
+          key: ruler_container_name
+
+# Service Account configuration for Workload Identity
+serviceAccount:
+  name: loki
+  annotations:
+    # Placeholder - replaced by Kustomize from config.properties
+    azure.workload.identity/client-id: placeholder
+
+# Loki configuration
+loki:
+  # Disable test schema - we're using proper object storage
+  useTestSchema: false
+  podLabels:
+    azure.workload.identity/use: "true"
+
+  # Log level - warn to reduce noise
+  server:
+    log_level: warn
+
+  schemaConfig:
+    configs:
+      - from: 2024-04-01
+        store: tsdb
+        object_store: azure
+        schema: v13
+        index:
+          prefix: index_
+          period: 24h
+
+  storage_config:
+    azure:
+      account_name: "${LOKI_STORAGE_ACCOUNT}"
+      container_name: "${LOKI_CHUNKS_CONTAINER}"
+      use_federated_token: true
+    # TSDB shipper configuration - reduce local cache to prevent disk space issues
+    # Queriers use emptyDir which can fill up; index-gateway handles persistent caching
+    tsdb_shipper:
+      active_index_directory: /var/loki/tsdb-shipper-active
+      cache_location: /var/loki/tsdb-shipper-cache
+      # Reduce cache TTL to limit disk usage on queriers (default is 24h)
+      cache_ttl: 8h
+
+  ingester:
+    chunk_encoding: snappy
+
+  pattern_ingester:
+    enabled: true
+
+  limits_config:
+    allow_structured_metadata: true
+    volume_enabled: true
+    retention_period: 672h # 28 days retention
+    reject_old_samples: false
+    reject_old_samples_max_age: 672h
+
+  compactor:
+    retention_enabled: true
+    delete_request_store: azure
+
+  ruler:
+    enable_api: true
+    storage:
+      type: azure
+      azure:
+        account_name: "${LOKI_STORAGE_ACCOUNT}"
+        container_name: "${LOKI_RULER_CONTAINER}"
+        use_federated_token: true
+      alertmanager_url: http://mimir-alertmanager.mimir.svc.cluster.local:8080/alertmanager
+
+  storage:
+    type: azure
+    bucketNames:
+      chunks: "${LOKI_CHUNKS_CONTAINER}"
+      ruler: "${LOKI_RULER_CONTAINER}"
+    azure:
+      accountName: "${LOKI_STORAGE_ACCOUNT}"
+      useFederatedToken: true
+
+  # Use structuredConfig to override the Helm chart's default memcached cache
+  # This configures Loki to use Dragonfly (Redis-compatible) for chunk and results caching
+  # See: https://grafana.com/docs/loki/latest/configure/#cache_config
+  structuredConfig:
+    chunk_store_config:
+      chunk_cache_config:
+        redis:
+          endpoint: dragonfly.dragonfly.svc.cluster.local:6379
+          timeout: 500ms
+          expiration: 24h
+          pool_size: 100
+          db: 0
+        background:
+          writeback_goroutines: 10
+          writeback_buffer: 500000
+    query_range:
+      results_cache:
+        cache:
+          redis:
+            endpoint: dragonfly.dragonfly.svc.cluster.local:6379
+            timeout: 500ms
+            expiration: 1h
+            pool_size: 50
+            db: 1
+
+# Kubernetes PDB Configuration (Root Level)
+ingester:
+  maxUnavailable: 1
+
+distributor:
+  maxUnavailable: 1
+
+querier:
+  maxUnavailable: 1
+
+queryFrontend:
+  maxUnavailable: 1
+
+# Monitoring configuration
+monitoring:
+  serviceMonitor:
+    enabled: true
+  selfMonitoring:
+    enabled: false
+    grafanaAgent:
+      installOperator: false
+
+# Disabled components (use SSD/Simple Scalable mode components instead)
+test:
+  enabled: false
+
+minio:
+  enabled: false
+
+backend:
+  replicas: 0
+
+read:
+  replicas: 0
+
+write:
+  replicas: 0

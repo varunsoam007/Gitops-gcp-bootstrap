@@ -1,0 +1,36 @@
+{{- $networkPolicy := .Values.networkPolicy | default dict }}
+{{- $egressPolicy := get $networkPolicy "egress" | default dict }}
+{{- $selectedPolicies := get $egressPolicy "policyFromCatalogue" | default list }}
+{{- $catalogue := .Values.egressCatalogue | default dict }}
+
+{{- range $policyName := $selectedPolicies }}
+{{- if not (hasKey $catalogue $policyName) }}
+{{- fail (printf "egressCatalogue entry %q not found" $policyName) }}
+{{- end }}
+{{- $cfg := index $catalogue $policyName }}
+
+{{- if and $cfg $cfg.policies $cfg.policies.l4 $cfg.policies.l4.enabled }}
+
+---
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: {{ $policyName }}-l4
+  namespace: {{ $.Release.Namespace }}
+
+spec:
+  targetRefs:
+    - group: networking.istio.io
+      kind: ServiceEntry
+      name: {{ $policyName }}
+
+  action: {{ $cfg.action | default "ALLOW" }}
+
+  rules:
+    - to:
+        - operation:
+            ports:
+              - "{{ $cfg.port }}"
+
+{{- end }}
+{{- end }}

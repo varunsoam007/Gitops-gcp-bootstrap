@@ -1,0 +1,20 @@
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDatasource
+metadata:
+  name: azure-monitor
+spec:
+  allowCrossNamespaceImport: true
+  instanceSelector:
+    matchLabels:
+      dashboards: "grafana"
+  datasource:
+    name: Azure Monitor
+    type: grafana-azure-monitor-datasource
+    uid: azure-monitor
+    access: proxy
+    isDefault: false
+    jsonData:
+      # Uses Grafana's Azure Workload Identity support configured in the Grafana CR.
+      azureAuthType: workloadidentity
+      # Placeholder - patched per environment with the default subscription ID.
+      subscriptionId: MUST_BE_PATCHED

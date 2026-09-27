@@ -1,0 +1,209 @@
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-options: ServerSideApply=true
+  name: testkube-postgres-results
+  labels:
+    dashboards: "grafana"
+spec:
+  instanceSelector:
+    matchLabels:
+      dashboards: "grafana"
+  folder: "Platform Components"
+  json: |
+    {
+      "annotations": {
+        "list": []
+      },
+      "description": "Testkube execution results from PostgreSQL (CNPG shared)",
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "panels": [
+        {
+          "id": 1,
+          "type": "stat",
+          "title": "Runs (Last 24h)",
+          "datasource": {
+            "type": "postgres",
+            "uid": "testkube-postgres"
+          },
+          "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+          "targets": [
+            {
+              "refId": "A",
+              "format": "table",
+              "rawSql": "SELECT COUNT(*) AS value FROM test_workflow_executions e WHERE e.created_at >= NOW() - INTERVAL '24 hours';"
+            }
+          ],
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "center",
+            "orientation": "auto",
+            "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+            "textMode": "auto"
+          }
+        },
+        {
+          "id": 2,
+          "type": "stat",
+          "title": "Failed Runs (Last 24h)",
+          "datasource": {
+            "type": "postgres",
+            "uid": "testkube-postgres"
+          },
+          "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "red", "value": 1 }
+                ]
+              },
+              "color": { "mode": "thresholds" }
+            },
+            "overrides": []
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "format": "table",
+              "rawSql": "SELECT COUNT(*) AS value FROM test_workflow_executions e LEFT JOIN test_workflow_results r ON r.execution_id = e.id WHERE e.created_at >= NOW() - INTERVAL '24 hours' AND LOWER(COALESCE(NULLIF(e.status, ''), r.status)) IN ('failed','error','aborted','timeout');"
+            }
+          ],
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "center",
+            "orientation": "auto",
+            "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+            "textMode": "auto"
+          }
+        },
+        {
+          "id": 3,
+          "type": "stat",
+          "title": "Pass Rate (Last 24h)",
+          "datasource": {
+            "type": "postgres",
+            "uid": "testkube-postgres"
+          },
+          "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "decimals": 2
+            },
+            "overrides": []
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "format": "table",
+              "rawSql": "SELECT COALESCE(100.0 * SUM(CASE WHEN LOWER(COALESCE(NULLIF(e.status, ''), r.status)) = 'passed' THEN 1 ELSE 0 END) / NULLIF(COUNT(*), 0), 0) AS value FROM test_workflow_executions e LEFT JOIN test_workflow_results r ON r.execution_id = e.id WHERE e.created_at >= NOW() - INTERVAL '24 hours';"
+            }
+          ],
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "center",
+            "orientation": "auto",
+            "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+            "textMode": "auto"
+          }
+        },
+        {
+          "id": 4,
+          "type": "timeseries",
+          "title": "Runs Over Time (Passed vs Failed)",
+          "datasource": {
+            "type": "postgres",
+            "uid": "testkube-postgres"
+          },
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 4 },
+          "targets": [
+            {
+              "refId": "A",
+              "format": "time_series",
+              "rawSql": "SELECT $__timeGroupAlias(e.created_at, $__interval), SUM(CASE WHEN LOWER(COALESCE(NULLIF(e.status, ''), r.status)) = 'passed' THEN 1 ELSE 0 END) AS passed, SUM(CASE WHEN LOWER(COALESCE(NULLIF(e.status, ''), r.status)) IN ('failed','error','aborted','timeout') THEN 1 ELSE 0 END) AS failed FROM test_workflow_executions e LEFT JOIN test_workflow_results r ON r.execution_id = e.id WHERE $__timeFilter(e.created_at) GROUP BY 1 ORDER BY 1;"
+            }
+          ],
+          "options": {
+            "legend": {
+              "showLegend": true,
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "none"
+            }
+          }
+        },
+        {
+          "id": 5,
+          "type": "table",
+          "title": "Top Failed Workflows",
+          "datasource": {
+            "type": "postgres",
+            "uid": "testkube-postgres"
+          },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+          "targets": [
+            {
+              "refId": "A",
+              "format": "table",
+              "rawSql": "SELECT COALESCE(NULLIF(e.workflow_name, ''), w.name, e.name) AS workflow, COUNT(*) AS failed_runs, MAX(e.created_at) AS last_seen FROM test_workflow_executions e LEFT JOIN test_workflow_results r ON r.execution_id = e.id LEFT JOIN test_workflows w ON w.execution_id = e.id AND w.workflow_type = 'workflow' WHERE $__timeFilter(e.created_at) AND LOWER(COALESCE(NULLIF(e.status, ''), r.status)) IN ('failed','error','aborted','timeout') GROUP BY 1 ORDER BY failed_runs DESC LIMIT 20;"
+            }
+          ],
+          "options": {
+            "showHeader": true,
+            "sortBy": [
+              {
+                "displayName": "failed_runs",
+                "desc": true
+              }
+            ]
+          }
+        },
+        {
+          "id": 6,
+          "type": "table",
+          "title": "Latest Failed Runs",
+          "datasource": {
+            "type": "postgres",
+            "uid": "testkube-postgres"
+          },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+          "targets": [
+            {
+              "refId": "A",
+              "format": "table",
+              "rawSql": "SELECT e.id AS execution_id, COALESCE(NULLIF(e.workflow_name, ''), w.name, e.name) AS workflow, LOWER(COALESCE(NULLIF(e.status, ''), r.status)) AS status, r.finished_at, r.duration_ms, LEFT(COALESCE(r.steps::text, ''), 200) AS steps_excerpt FROM test_workflow_executions e LEFT JOIN test_workflow_results r ON r.execution_id = e.id LEFT JOIN test_workflows w ON w.execution_id = e.id AND w.workflow_type = 'workflow' WHERE $__timeFilter(e.created_at) AND LOWER(COALESCE(NULLIF(e.status, ''), r.status)) IN ('failed','error','aborted','timeout') ORDER BY e.created_at DESC LIMIT 50;"
+            }
+          ],
+          "options": {
+            "showHeader": true
+          }
+        }
+      ],
+      "refresh": "30s",
+      "schemaVersion": 38,
+      "tags": ["testkube", "postgres", "qa"],
+      "templating": {
+        "list": []
+      },
+      "time": {
+        "from": "now-24h",
+        "to": "now"
+      },
+      "timezone": "",
+      "title": "Testkube Results (PostgreSQL)",
+      "uid": "testkube-pg-results",
+      "version": 1,
+      "weekStart": ""
+    }

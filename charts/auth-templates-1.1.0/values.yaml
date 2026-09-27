@@ -1,0 +1,13 @@
+# Default values for auth-templates library chart
+
+# Auth configuration defaults (used as fallbacks if not specified in consuming chart)
+auth_defaults:
+  enabled: false
+  # mode: "interactive" — browser + M2M via oauth2-proxy ext_authz
+  # mode: "m2m" — pure Istio JWT validation, no oauth2-proxy hop
+  mode: "interactive"
+  gateway: "shared-gateway-int"
+  gatewayNamespace: "gateway-api"
+  platformAuthNamespace: "platform-auth"
+  platformAuthServiceName: "platform-auth"
+  excludePaths: []

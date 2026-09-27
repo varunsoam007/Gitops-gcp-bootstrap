@@ -1,0 +1,75 @@
+{{- $defaults := .Values.auth_defaults | default dict }}
+{{- if .Values.auth }}
+{{- if .Values.auth.enabled }}
+{{- $hostname := required "auth.hostname is required when auth.enabled is true" .Values.auth.hostname }}
+{{- $gateway := default $defaults.gateway .Values.auth.gateway }}
+{{- $gatewayNamespace := default $defaults.gatewayNamespace .Values.auth.gatewayNamespace }}
+{{- $excludePaths := default $defaults.excludePaths .Values.auth.excludePaths }}
+{{- $requiredRoles := .Values.auth.requiredRoles | default list }}
+{{/* OAuth2 External Authorization Policy */}}
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: {{ .Release.Name }}-oauth2
+  namespace: {{ $gatewayNamespace }}
+  labels:
+    {{- include "auth-templates.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-options: ServerSideApply=true
+spec:
+  action: CUSTOM
+  provider:
+    name: oauth2-proxy-ext-authz
+  targetRefs:
+    - kind: Gateway
+      group: gateway.networking.k8s.io
+      name: {{ $gateway }}
+  rules:
+    - to:
+        - operation:
+            hosts:
+              - {{ $hostname | quote }}
+            notPaths:
+              {{- range $excludePaths }}
+              - {{ . | quote }}
+              {{- end }}
+{{- if $requiredRoles }}
+{{/* DENY policy - blocks users without required roles (no implicit deny on other hosts) */}}
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: {{ .Release.Name }}-deny
+  namespace: {{ $gatewayNamespace }}
+  labels:
+    {{- include "auth-templates.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-options: ServerSideApply=true
+spec:
+  targetRefs:
+    - kind: Gateway
+      group: gateway.networking.k8s.io
+      name: {{ $gateway }}
+  action: DENY
+  rules:
+    - to:
+        - operation:
+            hosts:
+              - {{ $hostname | quote }}
+            notPaths:
+              {{- range $excludePaths }}
+              - {{ . | quote }}
+              {{- end }}
+      when:
+        - key: request.headers[x-auth-request-groups]
+          notValues:
+            {{- range $requiredRoles }}
+            - {{ . | quote }}
+            - {{ printf "%s,*" . | quote }}
+            - {{ printf "*,%s" . | quote }}
+            - {{ printf "*,%s,*" . | quote }}
+            {{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

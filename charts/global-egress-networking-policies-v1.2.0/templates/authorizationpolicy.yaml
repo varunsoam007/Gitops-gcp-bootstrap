@@ -1,0 +1,117 @@
+{{- $networkPolicy := .Values.networkPolicy | default dict }}
+{{- $egressPolicy := get $networkPolicy "egress" | default dict }}
+{{- $selectedPolicies := get $egressPolicy "policyFromCatalogue" | default list }}
+{{- $catalogue := .Values.egressCatalogue | default dict }}
+
+{{- $defaultRestrictToReleaseNs := true }}
+{{- if and .Values.l7PolicyDefaults (hasKey .Values.l7PolicyDefaults "restrictToReleaseNamespace") }}
+{{- $defaultRestrictToReleaseNs = .Values.l7PolicyDefaults.restrictToReleaseNamespace }}
+{{- end }}
+
+{{- range $policyName := $selectedPolicies }}
+{{- if not (hasKey $catalogue $policyName) }}
+{{- fail (printf "egressCatalogue entry %q not found" $policyName) }}
+{{- end }}
+{{- $cfg := index $catalogue $policyName }}
+
+{{- if and $cfg $cfg.policies $cfg.policies.l7 $cfg.policies.l7.enabled }}
+{{- $policyNamespace := include "egress.policyNamespace" (list $ $cfg) }}
+{{- $policyNameL7 := include "egress.policyName" (list $ $cfg (printf "%s-l7" $policyName)) }}
+
+{{- $restrictToReleaseNs := $defaultRestrictToReleaseNs }}
+{{- if and $cfg.policies.l7 (hasKey $cfg.policies.l7 "restrictToReleaseNamespace") }}
+{{- $restrictToReleaseNs = $cfg.policies.l7.restrictToReleaseNamespace }}
+{{- end }}
+
+{{- $sourceNamespaces := list }}
+{{- if and $cfg.policies.l7.source $cfg.policies.l7.source.namespaces }}
+{{- $sourceNamespaces = $cfg.policies.l7.source.namespaces }}
+{{- else if $restrictToReleaseNs }}
+{{- $sourceNamespaces = list $.Release.Namespace }}
+{{- end }}
+
+---
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: {{ $policyNameL7 }}
+  namespace: {{ $policyNamespace }}
+
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: {{ include "egress.waypointName" (list $ $cfg) }}
+
+  action: {{ $cfg.action | default "ALLOW" }}
+
+  rules:
+    -
+{{- if or $sourceNamespaces (and $cfg.policies.l7.source $cfg.policies.l7.source.principals) (and $cfg.policies.l7.source $cfg.policies.l7.source.serviceAccounts) }}
+      from:
+        - source:
+{{- if $sourceNamespaces }}
+            namespaces:
+{{- range $sourceNamespaces }}
+              - {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- if and $cfg.policies.l7.source $cfg.policies.l7.source.principals }}
+            principals:
+{{- range $cfg.policies.l7.source.principals }}
+              - {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- if and $cfg.policies.l7.source $cfg.policies.l7.source.serviceAccounts }}
+            serviceAccounts:
+{{- range $cfg.policies.l7.source.serviceAccounts }}
+              - {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- end }}
+      to:
+        - operation:
+            hosts:
+{{- range $cfg.hosts }}
+              - {{ . | quote }}
+{{- end }}
+            ports:
+              - "{{ $cfg.port }}"
+
+{{- if not (and $cfg.policies.l7 (hasKey $cfg.policies.l7 "disableSniRule") $cfg.policies.l7.disableSniRule) }}
+    -
+{{- if or $sourceNamespaces (and $cfg.policies.l7.source $cfg.policies.l7.source.principals) (and $cfg.policies.l7.source $cfg.policies.l7.source.serviceAccounts) }}
+      from:
+        - source:
+{{- if $sourceNamespaces }}
+            namespaces:
+{{- range $sourceNamespaces }}
+              - {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- if and $cfg.policies.l7.source $cfg.policies.l7.source.principals }}
+            principals:
+{{- range $cfg.policies.l7.source.principals }}
+              - {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- if and $cfg.policies.l7.source $cfg.policies.l7.source.serviceAccounts }}
+            serviceAccounts:
+{{- range $cfg.policies.l7.source.serviceAccounts }}
+              - {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- end }}
+      to:
+        - operation:
+            ports:
+              - "{{ $cfg.port }}"
+      when:
+        - key: connection.sni
+          values:
+{{- range $cfg.hosts }}
+            - {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

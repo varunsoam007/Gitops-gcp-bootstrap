@@ -1,0 +1,11 @@
+# Resources: req==lim (VPA upper: ~128Mi)
+resources:
+  requests:
+    cpu: 23m
+    memory: 100Mi
+  limits:
+    cpu: 23m
+    memory: 100Mi
+
+nodeSelector:
+  karpenter.sh/capacity-type: on-demand

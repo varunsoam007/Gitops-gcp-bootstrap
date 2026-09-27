@@ -1,0 +1,24 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+helmGlobals:
+  chartHome: ../../../../charts
+
+helmCharts:
+  - name: keda-add-ons-http-0.15.0
+    version: 0.15.0
+    releaseName: keda-add-ons-http
+    namespace: keda
+    additionalValuesFiles:
+      - ../../base/values-common.yaml
+      - values-additional.yaml
+
+  - name: global-networking-policies-v1.3.0
+    version: 1.3.0
+    releaseName: keda-networking
+    namespace: keda
+    additionalValuesFiles:
+      - values-additional-networking.yaml

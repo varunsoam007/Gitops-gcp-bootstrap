@@ -1,0 +1,5 @@
+apiVersion: v2
+name: auth-templates
+description: Reusable templates for oauth2-proxy authentication
+type: application
+version: 1.0.0

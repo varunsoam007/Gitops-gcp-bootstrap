@@ -1,0 +1,82 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: cnpg-shared
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  # Enable Azure Workload Identity for barman-cloud backup authentication
+  inheritedMetadata:
+    labels:
+      azure.workload.identity/use: "true"
+  affinity:
+    nodeSelector:
+      karpenter.sh/capacity-type: on-demand
+      topology.kubernetes.io/zone: uksouth-2
+    podAntiAffinityType: required
+  # Resource limits to protect pods from OOM and ensure scheduling
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "1Gi"
+      cpu: "2"
+  # Delay failover to prevent cascading failures during transient issues
+  failoverDelay: 30
+  instances: 2
+  imageCatalogRef:
+    apiGroup: postgresql.cnpg.io
+    kind: ClusterImageCatalog
+    name: postgresql
+    major: 17
+  storage:
+    size: 100Gi
+    storageClass: postgresql-premiumv2
+  superuserSecret:
+    name: postgresadmin
+  monitoring:
+    enablePodMonitor: true
+    # Note: CNPG PodMonitor labels are controlled by the operator
+    # The prometheus-operator ServiceMonitorSelector/PodMonitorSelector 
+    # should be configured to match CNPG PodMonitors via cnpg.io/cluster label
+  # Barman Cloud Plugin configuration for backups
+  # serverName is required by barman-cloud plugin v0.6.0+
+  plugins:
+    - enabled: true
+      isWALArchiver: true
+      name: barman-cloud.cloudnative-pg.io
+      parameters:
+        serverName: cnpg-shared
+        barmanObjectName: cnpg-shared-backup-store
+  managed:
+    # Right now this is the only declarative way to add users.
+    roles:
+    - name: grafana_shared
+      ensure: present
+      comment: Grafana shared instance user
+      login: true
+      superuser: false
+      connectionLimit: -1
+      inherit: true
+      passwordSecret:
+        name: grafana-shared-user-secret
+    - name: magnolia_author_shared
+      ensure: present
+      comment: Magnolia Author Shared instance user
+      login: true
+      superuser: false
+      connectionLimit: -1
+      inherit: true
+      passwordSecret:
+        name: magnolia-author-shared-user-secret 
+    - name: testkube
+      ensure: present
+      comment: Testkube shared instance user
+      login: true
+      superuser: false
+      createdb: true
+      connectionLimit: -1
+      inherit: true
+      passwordSecret:
+        name: testkube-user-secret

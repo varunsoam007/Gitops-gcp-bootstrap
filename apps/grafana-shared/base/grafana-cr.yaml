@@ -1,0 +1,31 @@
+apiVersion: grafana.integreatly.org/v1beta1
+kind: Grafana
+metadata:
+  name: grafana
+  namespace: grafana-shared
+  labels:
+    dashboards: grafana
+spec:
+  deployment:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: grafana
+              resources:
+                requests:
+                  memory: 192Mi
+                limits:
+                  memory: 192Mi
+          initContainers:
+            - name: load-plugins
+              resources:
+                requests:
+                  memory: 128Mi
+                limits:
+                  memory: 128Mi
+          # Plugin volume (no init container needed - Job handles installation)
+          volumes:
+            - name: grafana-plugins
+              persistentVolumeClaim:
+                claimName: grafana-plugins

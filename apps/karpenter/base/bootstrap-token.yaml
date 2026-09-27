@@ -1,0 +1,159 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: karpenter-bootstrap-token-refresh
+  namespace: karpenter
+spec:
+  schedule: "0 */6 * * *" # Runs every 6 hours, adjust as needed
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: karpenter-bootstrap-token-manager
+          restartPolicy: OnFailure
+          containers:
+          - name: generate-bootstrap-token
+            image: crpinthirdpartymgtintuks001.azurecr.io/alpine/kubectl:latest
+            command:
+              - /bin/sh
+              - -c
+              - |
+                # Generate a new bootstrap token
+                rand_hex() {
+                  digits=${1:-6}  # Default to 6 digits if no parameter provided
+                  bytes=$((($digits + 1) / 2))  # Calculate bytes needed (round up)
+
+                  # Generate random hex using od and trim to exact digit count
+                  dd if=/dev/urandom bs=$bytes count=1 2>/dev/null | \
+                      od -t x1 -A n | \
+                      tr -d ' \n' | \
+                      cut -c1-$digits
+                }
+
+                # Expiry date generator
+                utc_plus_3days() {
+                  # Get current UTC timestamp
+                  current_utc=$(date -u +%s)
+                  # Add 3 days (3 * 24 * 60 * 60 = 259200 seconds)
+                  future_utc=$((current_utc + 259200))
+
+                  # Format as RFC3339 UTC time
+                  date -u -d "@$future_utc" '+%Y-%m-%dT%H:%M:%SZ'
+                }
+
+                TOKEN_ID=$(rand_hex 6)
+                TOKEN_SECRET=$(rand_hex 16)
+                EXPIRY_DATE=$(utc_plus_3days)
+                
+                # Create a Secret YAML manifest
+                # Read more at: # https://kubernetes.io/docs/reference/access-authn-authz/bootstrap-tokens/
+                cat <<EOF > /tmp/bootstrap-token.yaml
+                apiVersion: v1
+                kind: Secret
+                metadata:
+                  name: bootstrap-token-${TOKEN_ID}
+                  namespace: kube-system
+                  labels:
+                    kubernetes.io/bootstrapping: "token"
+                    type: "bootstrap-token"
+                type: bootstrap.kubernetes.io/token
+                stringData:
+                  description: "Bootstrap token for Karpenter to join nodes to the cluster"
+                  expiry: "${EXPIRY_DATE}"
+                  token-id: "${TOKEN_ID}"
+                  token-secret: "${TOKEN_SECRET}"
+                  usage-bootstrap-authentication: "true"
+                  usage-bootstrap-signing: "true"
+                EOF
+
+                # Apply the Secret to the cluster
+                kubectl apply -f /tmp/bootstrap-token.yaml
+
+                # Make the token accessible to Karpenter with a copy
+                cat <<EOF > /tmp/bootstrap-token-karpenter.yaml
+                apiVersion: v1
+                kind: Secret
+                metadata:
+                  name: bootstrap-token
+                  namespace: karpenter
+                stringData:
+                  description: "Bootstrap token for Karpenter to join nodes to the cluster"
+                  token: "$TOKEN_ID.$TOKEN_SECRET"
+                EOF
+
+                # Apply the Secret to the cluster
+                kubectl apply -f /tmp/bootstrap-token-karpenter.yaml
+
+                kubectl delete pod -l app.kubernetes.io/name=karpenter
+            env:
+            - name: KUBECONFIG
+              value: /etc/kubernetes/admin.conf
+            volumeMounts:
+            - name: kubeconfig
+              mountPath: /etc/kubernetes
+              readOnly: true
+          volumes:
+          - name: kubeconfig
+            hostPath:
+              path: /etc/kubernetes
+              type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: karpenter-bootstrap-token-manager
+  namespace: karpenter
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: karpenter-bootstrap-token-manager
+  namespace: kube-system
+rules:
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["create", "update", "get", "list", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: karpenter-bootstrap-token-manager
+  namespace: kube-system
+subjects:
+- kind: ServiceAccount
+  name: karpenter-bootstrap-token-manager
+  namespace: karpenter
+roleRef:
+  kind: Role
+  name: karpenter-bootstrap-token-manager
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: karpenter-bootstrap-token-manager
+  namespace: karpenter
+rules:
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["create", "update", "get", "list", "patch"]
+
+# Until better sophistication, the script kills the Karpenter pod
+# to ensure it picks up the new bootstrap token.
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["delete", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: karpenter-bootstrap-token-manager
+  namespace: karpenter
+subjects:
+- kind: ServiceAccount
+  name: karpenter-bootstrap-token-manager
+  namespace: karpenter
+roleRef:
+  kind: Role
+  name: karpenter-bootstrap-token-manager
+  apiGroup: rbac.authorization.k8s.io

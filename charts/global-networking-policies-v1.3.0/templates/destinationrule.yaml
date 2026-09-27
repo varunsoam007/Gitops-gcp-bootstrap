@@ -1,0 +1,47 @@
+{{- $selectedPolicies := .Values.networkPolicy.egress.policyFromCatalogue | default list }}
+
+{{- range $policyName := $selectedPolicies }}
+
+{{- $cfg := index $.Values.egressCatalogue $policyName }}
+
+{{- $tlsEnabled := false }}
+{{- $tlsMode := "" }}
+{{- if and $cfg (hasKey $cfg "tlsOrigination") }}
+  {{- if kindIs "bool" $cfg.tlsOrigination }}
+    {{- if $cfg.tlsOrigination }}
+      {{- $tlsEnabled = true }}
+      {{- $tlsMode = "SIMPLE" }}
+    {{- end }}
+  {{- else if and (kindIs "string" $cfg.tlsOrigination) (ne (trim $cfg.tlsOrigination) "") }}
+    {{- if ne (upper (trim $cfg.tlsOrigination)) "DISABLE" }}
+      {{- $tlsEnabled = true }}
+      {{- $tlsMode = upper (trim $cfg.tlsOrigination) }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+
+{{- if and $cfg (hasKey $cfg "tlsOriginationMode") (kindIs "string" $cfg.tlsOriginationMode) (ne (trim $cfg.tlsOriginationMode) "") }}
+  {{- $tlsMode = upper (trim $cfg.tlsOriginationMode) }}
+{{- end }}
+
+{{- if and $cfg $tlsEnabled (ne $tlsMode "") }}
+
+{{- range $host := $cfg.hosts }}
+
+---
+apiVersion: networking.istio.io/v1
+kind: DestinationRule
+metadata:
+  name: {{ $policyName }}-{{ include "egress.safeName" $host }}
+  namespace: {{ $.Release.Namespace }}
+
+spec:
+  host: {{ $host }}
+
+  trafficPolicy:
+    tls:
+      mode: {{ $tlsMode }}
+
+{{- end }}
+{{- end }}
+{{- end }}

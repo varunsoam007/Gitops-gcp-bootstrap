@@ -1,0 +1,10 @@
+# Shared Strimzi operator config
+
+# Keep operator scoped to this namespace only.
+watchAnyNamespace: false
+watchNamespaces:
+  - strimzi-kafka
+
+# Use the private third-party ACR pull-through cache.
+defaultImageRegistry: crpinthirdpartymgtintuks001.azurecr.io
+defaultImageRepository: strimzi

@@ -1,0 +1,26 @@
+{{- $defaults := .Values.auth_defaults | default dict }}
+{{- if .Values.auth }}
+{{- if .Values.auth.enabled }}
+{{- $platformAuthNamespace := default $defaults.platformAuthNamespace .Values.auth.platformAuthNamespace }}
+{{- $platformAuthServiceName := default $defaults.platformAuthServiceName .Values.auth.platformAuthServiceName }}
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata:
+  name: {{ .Release.Name }}-to-platform-auth
+  namespace: {{ $platformAuthNamespace }}
+  labels:
+    {{- include "auth-templates.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-options: ServerSideApply=true
+spec:
+  from:
+  - group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    namespace: {{ .Release.Namespace }}
+  to:
+  - group: ""
+    kind: Service
+    name: {{ $platformAuthServiceName }}
+{{- end }}
+{{- end }}

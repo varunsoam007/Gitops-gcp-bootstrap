@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kargo-cluster-secrets-external-config
+  namespace: kube-system
+data:
+  AZURE_CLIENT_ID: "placeholder"

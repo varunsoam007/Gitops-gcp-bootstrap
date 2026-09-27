@@ -1,0 +1,44 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: istio-proxies
+  namespace: istio-system
+spec:
+  selector:
+    matchExpressions:
+    - key: gateway.networking.k8s.io/gateway-name
+      operator: Exists
+  namespaceSelector:
+    any: true
+  podMetricsEndpoints:
+  - port: http-envoy-prom
+    interval: 5m
+    path: /stats/prometheus
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: istiod
+  namespace: istio-system
+spec:
+  selector:
+    matchLabels:
+      app: istiod
+  podMetricsEndpoints:
+  - port: http-monitoring
+    interval: 5m
+    path: /metrics
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: ztunnel
+  namespace: istio-system
+spec:
+  selector:
+    matchLabels:
+      app: ztunnel
+  podMetricsEndpoints:
+  - port: ztunnel-stats
+    interval: 5m
+    path: /stats/prometheus

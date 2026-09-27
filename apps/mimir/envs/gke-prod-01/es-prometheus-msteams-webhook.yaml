@@ -1,0 +1,31 @@
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: prometheus-msteams-webhook
+  namespace: mimir
+  annotations:
+    argocd.argoproj.io/sync-options: ServerSideApply=true,SkipDryRunOnMissingResource=true
+    argocd.argoproj.io/sync-wave: "-1"
+
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    kind: SecretStore
+    name: kv-pin-aks-devm-int-uks
+
+  target:
+    name: prometheus-msteams-webhook
+    creationPolicy: Owner
+    template:
+      type: Opaque
+      data:
+        webhook_url: "{{ .webhook_url }}"
+
+  data:
+    - secretKey: webhook_url
+      remoteRef:
+        # Placeholder - replaced by kustomize from config.properties
+        key: secret/placeholder-alertmanager-teams-webhook-secret
+        conversionStrategy: Default
+        decodingStrategy: None
+        metadataPolicy: None

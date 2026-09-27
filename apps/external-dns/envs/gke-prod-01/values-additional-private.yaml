@@ -1,0 +1,51 @@
+fullnameOverride: external-dns-private
+
+# Resources: req==lim (VPA upper: ~128Mi)
+resources:
+  requests:
+    cpu: 15m
+    memory: 100Mi
+  limits:
+    cpu: 15m
+    memory: 100Mi
+
+
+nodeSelector:
+  karpenter.sh/capacity-type: on-demand
+
+podLabels:
+  azure.workload.identity/use: "true"
+
+serviceAccount:
+  name: external-dns
+  create: false
+  annotations:
+    azure.workload.identity/client-id: 441dce6c-7055-457f-8b9f-8b914f2f1921 # app id for: msi-pin-xdns-devm-int-uks
+
+domainFilters:
+  - k01.devm.corp.pinpetuk.net
+
+extraArgs:
+  - --azure-zones-cache-duration=10m
+
+extraVolumes:
+  - name: azure-config-file
+    configMap:
+      name: azure-config-file
+
+extraVolumeMounts:
+  - name: azure-config-file
+    mountPath: /etc/kubernetes
+    readOnly: true
+
+provider:
+  name: azure-private-dns
+
+sources:
+  - service
+  - gateway-httproute
+  - gateway-grpcroute
+  # AKS' Gateway API doesn't support TLSRoute, TCPRoute, or UDPRoute yet.
+  # - gateway-tcproute
+  # - gateway-udproute
+  - istio-virtualservice

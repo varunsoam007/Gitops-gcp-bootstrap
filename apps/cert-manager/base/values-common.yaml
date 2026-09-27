@@ -1,0 +1,53 @@
+# Shared Cert Manager configuration
+
+# ACR third-party images
+image:
+  repository: crpinthirdpartymgtintuks001.azurecr.io/jetstack/cert-manager-controller
+
+replicaCount: 2
+
+resources:
+  requests:
+    cpu: 10m
+    memory: 64Mi
+  limits:
+    memory: 128Mi
+
+webhook:
+  image:
+    repository: crpinthirdpartymgtintuks001.azurecr.io/jetstack/cert-manager-webhook
+  replicaCount: 2
+  resources:
+    requests:
+      cpu: 10m
+      memory: 64Mi
+    limits:
+      memory: 128Mi
+
+cainjector:
+  image:
+    repository: crpinthirdpartymgtintuks001.azurecr.io/jetstack/cert-manager-cainjector
+  replicaCount: 2
+  resources:
+    requests:
+      cpu: 10m
+      memory: 64Mi
+    limits:
+      memory: 128Mi
+
+acmesolver:
+  image:
+    repository: crpinthirdpartymgtintuks001.azurecr.io/jetstack/cert-manager-acmesolver
+
+startupapicheck:
+  image:
+    repository: crpinthirdpartymgtintuks001.azurecr.io/jetstack/cert-manager-startupapicheck
+
+# Expose cert-manager metrics via PodMonitor for Alloy discovery
+# Alloy's prometheus.operator.podmonitors picks these up automatically
+prometheus:
+  enabled: true
+  podmonitor:
+    enabled: true
+    interval: 2m
+    scrapeTimeout: 30s

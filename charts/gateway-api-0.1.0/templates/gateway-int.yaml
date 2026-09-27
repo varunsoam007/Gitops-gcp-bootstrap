@@ -1,0 +1,56 @@
+{{- if .Values.internalGateway.enabled }}
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: {{ .Values.internalGateway.name }}
+  namespace: {{ .Values.namespace.name }}
+  annotations:
+    service.beta.kubernetes.io/azure-load-balancer-internal: "{{ .Values.internalGateway.loadBalancer.internal }}"
+    service.beta.kubernetes.io/azure-load-balancer-ipv4: {{ .Values.internalGateway.loadBalancer.ipv4 }}
+    service.beta.kubernetes.io/azure-load-balancer-health-probe-request-path: {{ .Values.internalGateway.loadBalancer.healthProbePath }}
+    service.beta.kubernetes.io/port_80_health-probe_protocol: http
+    service.beta.kubernetes.io/port_80_health-probe_port: {{ .Values.internalGateway.loadBalancer.healthProbePort | quote }}
+    service.beta.kubernetes.io/port_443_health-probe_protocol: http
+    service.beta.kubernetes.io/port_443_health-probe_port: {{ .Values.internalGateway.loadBalancer.healthProbePort | quote }}
+    service.beta.kubernetes.io/azure-load-balancer-resource-group: {{ .Values.internalGateway.loadBalancer.resourceGroup }}
+    service.beta.kubernetes.io/azure-load-balancer-internal-subnet: {{ .Values.internalGateway.loadBalancer.subnet }}
+{{- with .Values.internalGateway.annotations }}
+{{- range $key, $value := . }}
+    {{ $key }}: {{ $value | quote }}
+{{- end }}
+{{- end }}
+spec:
+  gatewayClassName: {{ .Values.internalGateway.className }}
+  infrastructure:
+    parametersRef:
+      group: ""
+      kind: ConfigMap
+      name: {{ .Values.gatewayOptions.internal.name }}
+  listeners:
+  - name: http
+    port: 80
+    protocol: HTTP
+    hostname: {{ .Values.internalGateway.hostname | quote }}
+    allowedRoutes:
+      namespaces:
+        from: Selector
+        selector:
+          matchLabels:
+            allow-shared-gateway-int-access: "true"
+  - name: https
+    port: 443
+    protocol: HTTPS
+    hostname: {{ .Values.internalGateway.hostname | quote }}
+    tls:
+      mode: Terminate
+      certificateRefs:
+      - group: ''
+        kind: Secret
+        name: {{ .Values.internalGateway.tls.certificateRef }}
+    allowedRoutes:
+      namespaces:
+        from: Selector
+        selector:
+          matchLabels:
+            allow-shared-gateway-int-access: "true"
+{{- end }}

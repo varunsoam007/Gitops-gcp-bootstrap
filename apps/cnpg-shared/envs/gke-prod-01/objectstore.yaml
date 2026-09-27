@@ -1,0 +1,28 @@
+# Barman Cloud ObjectStore for CNPG Shared Cluster Backups (devm-k01)
+#
+# This defines where physical backups and WAL archives are stored.
+# Uses Azure Blob Storage with Workload Identity authentication.
+apiVersion: barmancloud.cnpg.io/v1
+kind: ObjectStore
+metadata:
+  name: cnpg-shared-backup-store
+  namespace: cnpg-shared
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+    argocd.argoproj.io/sync-options: ServerSideApply=true
+    argocd.argoproj.io/tracking-id: >-
+      devm-k01-cnpg-shared:barmancloud.cnpg.io/ObjectStore:cnpg-shared/cnpg-shared-backup-store
+  labels:
+    argocd.argoproj.io/instance: devm-k01-cnpg-shared
+spec:
+  configuration:
+    destinationPath: "https://stpinbackupdevmintuks.blob.core.windows.net/aksshared/"
+    azureCredentials:
+      inheritFromAzureAD: true
+    wal:
+      compression: gzip
+      maxParallel: 8
+    data:
+      compression: gzip
+      jobs: 2
+  retentionPolicy: "30d"

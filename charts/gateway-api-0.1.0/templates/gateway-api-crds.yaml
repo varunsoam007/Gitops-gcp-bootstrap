@@ -1,0 +1,3 @@
+{{- if .Values.gatewayApi.enabled }}
+{{- (.Files.Get "gateway-api-crds.yaml") }}
+{{- end }}

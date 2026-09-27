@@ -1,0 +1,207 @@
+apiVersion: grafana.integreatly.org/v1beta1
+kind: Grafana
+metadata:
+  name: grafana
+  labels:
+    dashboards: "grafana"
+spec:
+  serviceAccount:
+      metadata:
+        annotations:
+          azure.workload.identity/client-id: placeholder
+  # Let Grafana Operator create and manage admin credentials secret
+  disableDefaultAdminSecret: false
+  version: "12.4.0"
+  deployment:
+    metadata:
+      labels:
+        app.kubernetes.io/name: grafana
+    spec:
+      replicas: 2
+      template:
+        metadata:
+          annotations:
+            # Secret rotation: CronJob grafana-secret-sync patches this annotation
+            # when watched secrets change, triggering pod rollout.
+            # Reloader cannot work with Grafana Operator (see AGENTS.md).
+            azure.workload.identity/use: "true"
+        spec:
+          priorityClassName: observability-critical
+          nodeSelector:
+            karpenter.sh/capacity-type: on-demand
+          # Init container to load plugins from ACR using oras
+          # The plugin is stored as an OCI artifact (not a container image)
+          # Uses Azure Workload Identity to authenticate to ACR
+          initContainers:
+            - name: load-plugins
+              image: crpinthirdpartymgtintuks001.azurecr.io/oras-project/oras:v1.2.2
+              command:
+                - sh
+                - -c
+                - |
+                  set -e
+                  echo "=== Grafana Plugin Installer ==="
+                  
+                  # Step 1: Get Azure AD token using workload identity
+                  echo "Authenticating to Azure AD..."
+                  FEDERATED_TOKEN=$(cat $AZURE_FEDERATED_TOKEN_FILE)
+                  ARM_RESPONSE=$(wget -q -O - --post-data \
+                    "grant_type=client_credentials&client_id=$AZURE_CLIENT_ID&client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer&client_assertion=$FEDERATED_TOKEN&scope=https://management.azure.com/.default" \
+                    "https://login.microsoftonline.com/$AZURE_TENANT_ID/oauth2/v2.0/token")
+                  ARM_TOKEN=$(echo "$ARM_RESPONSE" | sed -n 's/.*"access_token":"\([^"]*\).*/\1/p')
+                  
+                  if [ -z "$ARM_TOKEN" ]; then
+                    echo "ERROR: Failed to get Azure AD token"
+                    exit 1
+                  fi
+                  echo "Got Azure AD token"
+                  
+                  # Step 2: Exchange for ACR refresh token
+                  echo "Exchanging for ACR token..."
+                  ACR_EXCHANGE=$(wget -q -O - --post-data \
+                    "grant_type=access_token&service=$ACR_REGISTRY&tenant=$AZURE_TENANT_ID&access_token=$ARM_TOKEN" \
+                    "https://$ACR_REGISTRY/oauth2/exchange")
+                  ACR_REFRESH_TOKEN=$(echo "$ACR_EXCHANGE" | sed -n 's/.*"refresh_token":"\([^"]*\).*/\1/p')
+                  
+                  if [ -z "$ACR_REFRESH_TOKEN" ]; then
+                    echo "ERROR: Failed to get ACR token"
+                    exit 1
+                  fi
+                  echo "Got ACR refresh token"
+                  
+                  # Step 3: Login to oras
+                  echo "Logging in to ACR..."
+                  echo "$ACR_REFRESH_TOKEN" | oras login "$ACR_REGISTRY" \
+                    --username 00000000-0000-0000-0000-000000000000 --password-stdin
+                  
+                  # Step 4: Pull the plugin artifact (--platform to avoid duplicate name error from multi-arch index)
+                  echo "Pulling Infinity plugin..."
+                  PLUGIN_DIR="/plugins/yesoreyeram-infinity-datasource"
+                  mkdir -p "$PLUGIN_DIR"
+                  oras pull "$ACR_REGISTRY/grafana-plugins/yesoreyeram-infinity-datasource:2.10.0" --platform linux/amd64 -o "$PLUGIN_DIR"
+                  
+                  echo ""
+                  echo "=== Plugin installed successfully ==="
+                  ls -la "$PLUGIN_DIR"
+              env:
+                - name: AZURE_CLIENT_ID
+                  value: "placeholder_client_id"
+                - name: AZURE_TENANT_ID
+                  value: "a47336de-50a0-418e-a3a6-0d36f185f6d4"
+                - name: AZURE_FEDERATED_TOKEN_FILE
+                  value: "/var/run/secrets/tokens/azure-identity-token"
+                - name: ACR_REGISTRY
+                  value: "crpinthirdpartymgtintuks001.azurecr.io"
+              volumeMounts:
+                - name: grafana-plugins
+                  mountPath: /plugins
+                - name: azure-identity-token
+                  mountPath: /var/run/secrets/tokens
+                  readOnly: true
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 128Mi
+                limits:
+                  memory: 128Mi
+          containers:
+            - name: grafana
+              resources:
+                requests:
+                  cpu: 35m
+                  memory: 260Mi
+                limits:
+                  cpu: 49m
+                  memory: 261Mi
+              env:
+                - name: GF_DATABASE_USER
+                  valueFrom:
+                    secretKeyRef:
+                      name: grafana-shared-user-secret
+                      key: username
+                - name: GF_DATABASE_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: grafana-shared-user-secret
+                      key: password
+              envFrom:
+                - secretRef:
+                    name: grafana-shared
+              volumeMounts:
+                - mountPath: /var/run/secrets/tokens
+                  name: azure-identity-token
+                  readOnly: true
+                - name: grafana-plugins
+                  mountPath: /var/lib/grafana/plugins
+                - name: tmp-dir
+                  mountPath: /tmp
+          volumes:
+          - name: azure-identity-token
+            projected:
+              defaultMode: 420
+              sources:
+              - serviceAccountToken:
+                  audience: api://AzureADTokenExchange
+                  expirationSeconds: 3600
+                  path: azure-identity-token
+          - name: grafana-plugins
+            emptyDir: {}
+          - name: tmp-dir
+            emptyDir: {}
+
+  config:
+    plugins:
+      allow_loading_unsigned_plugins: "yesoreyeram-infinity-datasource"
+    server:
+      root_url: https://grafana.k01.devm.corp.pinpetuk.net/
+    log:
+      mode: "console"
+      level: "warn"
+    database:
+      type: postgres
+      host: cnpg-shared-rw.cnpg-shared.svc.cluster.local
+      name: grafana_shared
+    auth:
+      disable_signout_menu: "true"
+      login_maximum_inactive_lifetime_duration: 12h
+      oauth_state_cookie_max_age: "86400"
+      login_maximum_lifetime_duration: 12h
+    auth.anonymous:
+      enabled: "false"
+    auth.basic:
+      # Enable basic auth for API access (used by Grafana Operator)
+      # The login form remains hidden - users only see Azure AD OAuth login
+      # This allows the operator to authenticate using admin credentials to manage dashboards
+      enabled: "true"
+      disable_login_form: "true"
+    date_formats:
+      default_timezone: Europe/London
+    auth.azuread:
+      allow_assign_grafana_admin: "true"
+      allowed_organizations: azuread_tenant_id
+      auth_url: azure_authorize_url
+      client_authentication: workload_identity
+      # App registration client ID
+      client_id: app_client_id
+      enabled: "true"
+      federated_credential_audience: "api://AzureADTokenExchange"
+      name: "Calandra Entra ID"
+      scopes: "openid email profile"
+      role_attribute_path: "contains(groups[*], 'grafana-admin') && 'Admin' || contains(groups[*], 'grafana-editor') && 'Editor' || 'Viewer'"
+      #org_mapping = ["032cb8e0-240f-4347-9120-6f33013e817a:org_foo:Viewer", "bce1c492-0679-4989-941b-8de5e6789cb9:org_bar:Editor", "*:org_baz:Editor"]
+      role_attribute_strict: "true"
+      token_url: azure_token_url
+      use_pkce: "true"
+      # This is a workaround for refresh token bug: https://github.com/grafana/grafana/issues/112509
+      use_refresh_token: "false"
+      workload_identity_token_file: "/var/run/secrets/tokens/azure-identity-token"
+
+  # persistentVolumeClaim:
+  #   spec:
+  #     accessModes:
+  #       - ReadWriteOnce
+  #     volumeMode: Filesystem
+  #     storageClassName: managed
+  #     resources:
+  #       requests:
+  #         storage: 1Gi

@@ -1,0 +1,50 @@
+{{- $selectedPolicies := .Values.networkPolicy.egress.policyFromCatalogue | default list }}
+
+{{- range $policyName := $selectedPolicies }}
+
+{{- $cfg := index $.Values.egressCatalogue $policyName }}
+
+{{- if and $cfg $cfg.policies $cfg.policies.l7 $cfg.policies.l7.enabled }}
+
+{{- $isSameNamespace := include "egress.waypointIsSameNamespace" (list $ $cfg) }}
+
+{{- if eq $isSameNamespace "true" }}
+---
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: {{ $policyName }}-l7
+  namespace: {{ $.Release.Namespace }}
+
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: {{ include "egress.waypointName" (list $ $cfg) }}
+
+  action: {{ $cfg.action | default "ALLOW" }}
+
+  rules:
+    - to:
+        - operation:
+            hosts:
+{{- range $cfg.hosts }}
+              - {{ . | quote }}
+{{- end }}
+            ports:
+              - "{{ $cfg.port }}"
+
+    - to:
+        - operation:
+            ports:
+              - "{{ $cfg.port }}"
+      when:
+        - key: connection.sni
+          values:
+{{- range $cfg.hosts }}
+            - {{ . | quote }}
+{{- end }}
+{{- end }}
+
+{{- end }}
+{{- end }}

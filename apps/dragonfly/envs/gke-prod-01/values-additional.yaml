@@ -1,0 +1,39 @@
+# Environment: devm-k01 - Development cluster
+# Minimal resources for dev environment
+
+# Single replica for dev (no HA needed)
+replicaCount: 1
+
+# Private ACR image
+image:
+  repository: crpinthirdpartymgtintuks001.azurecr.io/dragonflydb/dragonfly
+
+# Memory limit for cache mode
+extraArgs:
+  - --cache_mode=true
+  - --proactor_threads=1
+  - --maxmemory=900mb
+
+# Minimal resources for dev
+resources:
+  requests:
+    cpu: 23m
+    memory: 933Mi
+  limits:
+    cpu: 23m
+    memory: 938Mi
+
+# Run on on-demand nodes for stability (cache is critical for Loki performance)
+nodeSelector:
+  karpenter.sh/capacity-type: on-demand
+
+# Spread replicas across availability zones
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: dragonfly
+          topologyKey: topology.kubernetes.io/zone

@@ -1,0 +1,291 @@
+# Chart Registry — Single source of truth for all vendored Helm charts
+#
+# Schema:
+#   name:         Chart name (matches Chart.yaml `name` field)
+#   directory:    Directory name under charts/ (includes version suffix)
+#   version:      Currently vendored chart version
+#   type:         "helm" (traditional repo) or "oci" (OCI registry)
+#   repo:         Helm repo URL (type: helm) or OCI base URL without chart name (type: oci)
+#   chart:        Chart name within the repo (may differ from `name`)
+#   repoAlias:    Short alias for `helm repo add` (type: helm only)
+#   localPatches: true if the chart has local modifications that must be re-applied on upgrade
+#   patchNotes:   Description of local patches (when localPatches: true)
+#   internal:     true if internally maintained (skipped during version checks)
+#
+# Adding a new chart:
+#   1. Add an entry below with all required fields
+#   2. Run: ./chart-downloader.sh --name <chart-name> [--version <version>]
+#   3. Commit the new chart directory and this updated registry
+#   4. For external charts, add the renovate comment on `version` or automated updates will not work
+
+charts:
+  # ── Grafana Observability ──────────────────────────────────────────────────
+  - name: alloy
+    directory: alloy-1.11.1
+    version: "1.11.1" # renovate: datasource=helm registryUrl=https://grafana.github.io/helm-charts depName=alloy
+    type: helm
+    repo: https://grafana.github.io/helm-charts
+    chart: alloy
+    repoAlias: grafana
+  - name: loki
+    directory: loki-6.53.0
+    version: "6.53.0" # renovate: datasource=helm registryUrl=https://grafana-community.github.io/helm-charts depName=loki
+    type: helm
+    repo: https://grafana-community.github.io/helm-charts
+    chart: loki
+    repoAlias: grafana-community
+  - name: mimir-distributed
+    directory: mimir-distributed-6.1.0
+    version: "6.1.0" # renovate: datasource=helm registryUrl=https://grafana.github.io/helm-charts depName=mimir-distributed
+    type: helm
+    repo: https://grafana.github.io/helm-charts
+    chart: mimir-distributed
+    repoAlias: grafana
+  - name: tempo-distributed
+    directory: tempo-distributed-1.61.3
+    version: "1.61.3" # renovate: datasource=helm registryUrl=https://grafana.github.io/helm-charts depName=tempo-distributed
+    type: helm
+    repo: https://grafana.github.io/helm-charts
+    chart: tempo-distributed
+    repoAlias: grafana
+  - name: tempo-distributed-v3
+    directory: tempo-distributed-3.5.1
+    version: "3.5.1" # renovate: datasource=helm registryUrl=https://grafana-community.github.io/helm-charts depName=tempo-distributed
+    type: helm
+    repo: https://grafana-community.github.io/helm-charts
+    chart: tempo-distributed
+    repoAlias: grafana-community
+  - name: grafana-operator
+    directory: grafana-operator-5.22.0
+    version: "5.22.0" # renovate: datasource=helm registryUrl=https://grafana.github.io/helm-charts depName=grafana-operator
+    type: helm
+    repo: https://grafana.github.io/helm-charts
+    chart: grafana-operator
+    repoAlias: grafana
+  # ── Prometheus Ecosystem ───────────────────────────────────────────────────
+  - name: kube-state-metrics
+    directory: kube-state-metrics-8.3.0
+    version: "8.3.0" # renovate: datasource=helm registryUrl=https://prometheus-community.github.io/helm-charts depName=kube-state-metrics
+    type: helm
+    repo: https://prometheus-community.github.io/helm-charts
+    chart: kube-state-metrics
+    repoAlias: prometheus-community
+  - name: prometheus-node-exporter
+    directory: prometheus-node-exporter-4.56.1
+    version: "4.56.1" # renovate: datasource=helm registryUrl=https://prometheus-community.github.io/helm-charts depName=prometheus-node-exporter
+    type: helm
+    repo: https://prometheus-community.github.io/helm-charts
+    chart: prometheus-node-exporter
+    repoAlias: prometheus-community
+  - name: prometheus-blackbox-exporter
+    directory: prometheus-blackbox-exporter-11.6.1
+    version: "11.6.1" # renovate: datasource=helm registryUrl=https://prometheus-community.github.io/helm-charts depName=prometheus-blackbox-exporter
+    type: helm
+    repo: https://prometheus-community.github.io/helm-charts
+    chart: prometheus-blackbox-exporter
+    repoAlias: prometheus-community
+  # ── Istio Service Mesh ─────────────────────────────────────────────────────
+  - name: base
+    directory: istio-base-1.29.1
+    version: "1.29.1" # renovate: datasource=helm registryUrl=https://istio-release.storage.googleapis.com/charts depName=base
+    type: helm
+    repo: https://istio-release.storage.googleapis.com/charts
+    chart: base
+    repoAlias: istio
+  - name: cni
+    directory: istio-cni-1.29.1
+    version: "1.29.1" # renovate: datasource=helm registryUrl=https://istio-release.storage.googleapis.com/charts depName=cni
+    type: helm
+    repo: https://istio-release.storage.googleapis.com/charts
+    chart: cni
+    repoAlias: istio
+  - name: istiod
+    directory: istio-istiod-1.29.1
+    version: "1.29.1" # renovate: datasource=helm registryUrl=https://istio-release.storage.googleapis.com/charts depName=istiod
+    type: helm
+    repo: https://istio-release.storage.googleapis.com/charts
+    chart: istiod
+    repoAlias: istio
+  - name: ztunnel
+    directory: istio-ztunnel-1.29.1
+    version: "1.29.1" # renovate: datasource=helm registryUrl=https://istio-release.storage.googleapis.com/charts depName=ztunnel
+    type: helm
+    repo: https://istio-release.storage.googleapis.com/charts
+    chart: ztunnel
+    repoAlias: istio
+  # ── Security ───────────────────────────────────────────────────────────────
+  - name: cert-manager
+    directory: jetstack-cert-manager-v1.18.1
+    version: v1.18.1 # renovate: datasource=helm registryUrl=https://charts.jetstack.io depName=cert-manager
+    type: helm
+    repo: https://charts.jetstack.io
+    chart: cert-manager
+    repoAlias: jetstack
+  - name: falco
+    directory: falco-8.0.1
+    version: "8.0.1" # renovate: datasource=helm registryUrl=https://falcosecurity.github.io/charts depName=falco
+    type: helm
+    repo: https://falcosecurity.github.io/charts
+    chart: falco
+    repoAlias: falcosecurity
+  - name: trivy-operator
+    directory: trivy-operator-0.32.0
+    version: "0.32.0" # renovate: datasource=helm registryUrl=https://aquasecurity.github.io/helm-charts depName=trivy-operator
+    type: helm
+    repo: https://aquasecurity.github.io/helm-charts
+    chart: trivy-operator
+    repoAlias: aquasecurity
+  - name: oauth2-proxy
+    directory: oauth2-proxy-10.3.0
+    version: "10.3.0" # renovate: datasource=helm registryUrl=https://oauth2-proxy.github.io/manifests depName=oauth2-proxy
+    type: helm
+    repo: https://oauth2-proxy.github.io/manifests
+    chart: oauth2-proxy
+    repoAlias: oauth2-proxy
+  # ── External Services ──────────────────────────────────────────────────────
+  - name: external-dns
+    directory: external-dns-1.19.0
+    version: "1.19.0" # renovate: datasource=helm registryUrl=https://kubernetes-sigs.github.io/external-dns depName=external-dns
+    type: helm
+    repo: https://kubernetes-sigs.github.io/external-dns
+    chart: external-dns
+    repoAlias: external-dns
+  - name: external-secrets
+    directory: external-secrets-1.2.0
+    version: "1.2.0" # renovate: datasource=helm registryUrl=https://charts.external-secrets.io depName=external-secrets
+    type: helm
+    repo: https://charts.external-secrets.io
+    chart: external-secrets
+    repoAlias: external-secrets
+  # ── Cluster Infrastructure ─────────────────────────────────────────────────
+  - name: karpenter
+    directory: karpenter-1.14.0
+    version: "1.14.0" # renovate: datasource=docker registryUrl=https://mcr.microsoft.com depName=aks/karpenter/karpenter
+    type: oci
+    repo: oci://mcr.microsoft.com/aks/karpenter
+    chart: karpenter
+  - name: karpenter-crd
+    directory: karpenter-crd-1.14.0
+    version: "1.14.0" # renovate: datasource=docker registryUrl=https://mcr.microsoft.com depName=aks/karpenter/karpenter-crd
+    type: oci
+    repo: oci://mcr.microsoft.com/aks/karpenter
+    chart: karpenter-crd
+  # ── Databases & Caching ────────────────────────────────────────────────────
+  - name: cloudnative-pg
+    directory: cloudnative-pg-0.27.1
+    version: "0.27.1" # renovate: datasource=helm registryUrl=https://cloudnative-pg.github.io/charts depName=cloudnative-pg
+    type: helm
+    repo: https://cloudnative-pg.github.io/charts
+    chart: cloudnative-pg
+    repoAlias: cnpg
+  - name: strimzi-kafka-operator
+    directory: strimzi-kafka-operator-1.2.0
+    version: "1.2.0" # renovate: datasource=docker registryUrl=https://quay.io depName=strimzi-helm/strimzi-kafka-operator
+    type: oci
+    repo: oci://quay.io/strimzi-helm
+    chart: strimzi-kafka-operator
+  - name: dragonfly
+    directory: dragonfly-v1.36.0
+    version: v1.36.0 # renovate: datasource=docker registryUrl=https://ghcr.io depName=dragonflydb/dragonfly/helm/dragonfly
+    type: oci
+    repo: oci://ghcr.io/dragonflydb/dragonfly/helm
+    chart: dragonfly
+  # ── GitOps & Delivery ──────────────────────────────────────────────────────
+  - name: kargo
+    directory: kargo-1.10.6
+    version: "1.10.6" # renovate: datasource=docker registryUrl=https://ghcr.io depName=akuity/kargo-charts/kargo
+    type: oci
+    repo: oci://ghcr.io/akuity/kargo-charts
+    chart: kargo
+  - name: argo-rollouts
+    directory: argo-rollouts-2.41.0
+    version: "2.41.0" # renovate: datasource=helm registryUrl=https://argoproj.github.io/argo-helm depName=argo-rollouts
+    type: helm
+    repo: https://argoproj.github.io/argo-helm
+    chart: argo-rollouts
+    repoAlias: argo
+  - name: kiali-server
+    directory: kiali-server-2.15.0
+    version: "2.15.0" # renovate: datasource=helm registryUrl=https://kiali.github.io/helm-charts depName=kiali-server
+    type: helm
+    repo: https://kiali.github.io/helm-charts
+    chart: kiali-server
+    repoAlias: kiali
+  - name: radar
+    directory: radar-1.5.10
+    version: "1.5.10" # renovate: datasource=helm registryUrl=https://skyhook-io.github.io/helm-charts depName=radar
+    type: helm
+    repo: https://skyhook-io.github.io/helm-charts
+    chart: radar
+    repoAlias: skyhook
+  # ── Utilities ──────────────────────────────────────────────────────────────
+  - name: reflector
+    directory: reflector-9.1.31
+    version: "9.1.31" # renovate: datasource=docker registryUrl=https://ghcr.io depName=emberstack/helm-charts/reflector
+    type: oci
+    repo: oci://ghcr.io/emberstack/helm-charts
+    chart: reflector
+  - name: reloader
+    directory: reloader-2.2.3
+    version: "2.2.3" # renovate: datasource=helm registryUrl=https://stakater.github.io/stakater-charts depName=reloader
+    type: helm
+    repo: https://stakater.github.io/stakater-charts
+    chart: reloader
+    repoAlias: stakater
+  - name: opencost
+    directory: opencost-2.4.1
+    version: "2.4.1" # renovate: datasource=helm registryUrl=https://opencost.github.io/opencost-helm-chart depName=opencost
+    type: helm
+    repo: https://opencost.github.io/opencost-helm-chart
+    chart: opencost
+    repoAlias: opencost
+  - name: chaos-mesh
+    directory: chaos-mesh-2.8.2
+    version: "2.8.2" # renovate: datasource=helm registryUrl=https://charts.chaos-mesh.org depName=chaos-mesh
+    type: helm
+    repo: https://charts.chaos-mesh.org
+    chart: chaos-mesh
+    repoAlias: chaos-mesh
+  # ── Cost Optimisation ────────────────────────────────────────────────────
+  - name: goldilocks
+    directory: goldilocks-10.3.0
+    version: "10.3.0" # renovate: datasource=helm registryUrl=https://charts.fairwinds.com/stable depName=goldilocks
+    type: helm
+    repo: https://charts.fairwinds.com/stable
+    chart: goldilocks
+    repoAlias: fairwinds-stable
+  # ── Autoscaling ────────────────────────────────────────────────────────────
+  # NOTE: KEDA core is installed via the AKS managed add-on (runs in kube-system).
+  # This chart adds the HTTP add-on (operator + interceptor + external scaler),
+  # which integrates with the AKS-managed KEDA via standard ScaledObjects. 
+  - name: keda-add-ons-http
+    directory: keda-add-ons-http-0.15.0
+    version: "0.15.0" # renovate: datasource=helm registryUrl=https://kedacore.github.io/charts depName=keda-add-ons-http
+    type: helm
+    repo: https://kedacore.github.io/charts
+    chart: keda-add-ons-http
+    repoAlias: kedacore
+  # ── Testing ───────────────────────────────────────────────────────────────
+  - name: testkube
+    directory: testkube-2.11.2
+    version: "2.11.2" # renovate: datasource=helm registryUrl=https://kubeshop.github.io/helm-charts depName=testkube
+    type: helm
+    repo: https://kubeshop.github.io/helm-charts
+    chart: testkube
+    repoAlias: kubeshop
+  - name: testkube-dashboard
+    directory: testkube-dashboard-1.16.7
+    version: "1.16.7" # renovate: datasource=helm registryUrl=https://kubeshop.github.io/helm-charts depName=testkube-dashboard
+    type: helm
+    repo: https://kubeshop.github.io/helm-charts
+    chart: testkube-dashboard
+    repoAlias: kubeshop
+  # ── Internal Charts ────────────────────────────────────────────────────────
+  - name: gateway-api
+    directory: gateway-api-1.6.1
+    version: "1.6.1"
+    internal: true
+  - name: troubleshooting-pod
+    directory: troubleshooting-pod-0.1.0
+    version: "0.1.0"
+    internal: true

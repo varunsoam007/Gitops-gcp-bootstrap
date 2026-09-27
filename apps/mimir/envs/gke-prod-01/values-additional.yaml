@@ -1,0 +1,323 @@
+# Environment: devm-k01 - Development cluster
+
+image:
+  repository: crpinthirdpartymgtintuks001.azurecr.io/grafana/mimir
+  tag: "3.2.0"
+
+# ServiceAccount with workload identity for Azure authentication
+serviceAccount:
+  create: true
+  annotations:
+    azure.workload.identity/client-id: placeholder
+
+global:
+  priorityClassName: observability-critical
+  podLabels:
+    azure.workload.identity/use: "true"
+  # Exclude memberlist gossip port from Istio ztunnel interception
+  # Prevents TCP proxy overhead causing memberlist i/o timeouts and ring failures
+  podAnnotations:
+    traffic.istio.io/excludeInboundPorts: "7946"
+    traffic.istio.io/excludeOutboundPorts: "7946"
+  extraEnv:
+    - name: MIMIR_STORAGE_ACCOUNT
+      valueFrom:
+        configMapKeyRef:
+          name: external-config
+          key: storage_account_name
+    - name: MIMIR_BLOCKS_CONTAINER
+      valueFrom:
+        configMapKeyRef:
+          name: external-config
+          key: blocks_container_name
+    - name: MIMIR_ALERTMANAGER_CONTAINER
+      valueFrom:
+        configMapKeyRef:
+          name: external-config
+          key: alertmanager_container_name
+    - name: MIMIR_RULER_CONTAINER
+      valueFrom:
+        configMapKeyRef:
+          name: external-config
+          key: ruler_container_name
+
+# Mimir configuration for Azure storage
+mimir:
+  structuredConfig:
+    # Disable multi-tenancy - single tenant mode
+    multitenancy_enabled: false
+
+    # Disable ingest-storage (Kafka-based) - use classic push architecture
+    ingest_storage:
+      enabled: false
+
+    # Re-enable push gRPC (disabled by default in 6.0 for Kafka mode)
+    ingester:
+      push_grpc_method_enabled: true
+      ring:
+        replication_factor: 3 
+        heartbeat_period: 15s   
+        heartbeat_timeout: 1m   
+      # Per-ingester safety guardrails
+      instance_limits:
+        max_ingestion_rate: 60000        # per-ingester cap (samples/sec)
+        max_series: 2000000              # per-ingester series limit
+        max_inflight_push_requests: 30000
+
+    # Alertmanager fallback config path for mimir-distributed 6.1.x.
+    # In 6.1.x the fallback ConfigMap is mounted at /configs/ and key name is
+    # alertmanager_fallback_config.yaml. Using the older /etc path causes
+    # alertmanager startup failure and CrashLoopBackOff.
+    alertmanager:
+      fallback_config_file: /configs/alertmanager_fallback_config.yaml
+
+    common:
+      storage:
+        backend: azure
+        azure:
+          account_name: "${MIMIR_STORAGE_ACCOUNT}"
+          container_name: "${MIMIR_BLOCKS_CONTAINER}"
+
+    blocks_storage:
+      backend: azure
+      bucket_store:
+        sync_dir: /data/tsdb-sync
+      azure:
+        account_name: "${MIMIR_STORAGE_ACCOUNT}"
+        container_name: "${MIMIR_BLOCKS_CONTAINER}"
+
+    alertmanager_storage:
+      backend: azure
+      azure:
+        account_name: "${MIMIR_STORAGE_ACCOUNT}"
+        container_name: "${MIMIR_ALERTMANAGER_CONTAINER}"
+
+    # ruler_storage: now uses local filesystem from base values-common.yaml
+    # Rules are managed in Git via mimir-ruler-rules ConfigMap
+
+    server:
+      log_level: warn
+      log_format: logfmt
+
+    # Limits for anonymous tenant (single-tenant mode)
+      # Metrics retention: 14 days for dev environment
+    limits:
+      compactor_blocks_retention_period: 336h
+      out_of_order_time_window: 24h
+   
+# Stateful - on-demand nodes for stability (spot evictions cause ring failures)
+# Disable zone-aware replication for simpler deployment
+ingester:
+  replicas: 3
+  podDisruptionBudget:
+    maxUnavailable: 1
+  nodeSelector:
+    karpenter.sh/capacity-type: on-demand
+  persistentVolume:
+    size: 10Gi
+  zoneAwareReplication:
+    enabled: false
+  topologySpreadConstraints:
+    maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    whenUnsatisfiable: DoNotSchedule
+  # Extra headroom for WAL replay and compaction spikes.
+  env:
+    - name: GOMEMLIMIT
+      value: "2458MiB"
+  resources:
+    requests:
+      cpu: 126m
+      memory: 3320Mi
+    limits:
+      cpu: 143m
+      memory: 3339Mi
+
+# Alertmanager configuration with Teams webhook
+alertmanager:
+  resources:
+    requests:
+      cpu: 15m
+      memory: 100Mi
+    limits:
+      cpu: 15m
+      memory: 100Mi
+  fallbackConfig: |
+    global:
+      resolve_timeout: 5m
+    route:
+      receiver: teams
+      group_by: ['alertname', 'exported_namespace', 'namespace']
+      group_wait: 1m
+      group_interval: 1h
+      repeat_interval: 6h
+    receivers:
+      - name: teams
+        webhook_configs:
+          # Send to prometheus-msteams which transforms to Adaptive Card format
+          - url: "http://prometheus-msteams.mimir.svc.cluster.local:2000/alertmanager"
+            send_resolved: true
+
+# Query-frontend: 2 replicas for HA and load distribution
+query_frontend:
+  replicas: 2
+  podDisruptionBudget:
+    maxUnavailable: 1
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: agentpool
+                operator: In
+                values:
+                  - default
+          - matchExpressions:
+              - key: karpenter.sh/capacity-type
+                operator: In
+                values:
+                  - on-demand
+  topologySpreadConstraints:
+    maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    whenUnsatisfiable: DoNotSchedule
+  resources:
+    requests:
+      cpu: 15m
+      memory: 175Mi
+    limits:
+      cpu: 15m
+      memory: 176Mi
+
+# Pin gateway to stable Karpenter on-demand capacity
+gateway:
+  nodeSelector:
+    karpenter.sh/capacity-type: on-demand
+  resources:
+    requests:
+      cpu: 15m
+      memory: 100Mi
+    limits:
+      cpu: 15m
+      memory: 100Mi
+
+distributor:
+  podDisruptionBudget:
+    maxUnavailable: 1
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: agentpool
+                operator: In
+                values:
+                  - default
+          - matchExpressions:
+              - key: karpenter.sh/capacity-type
+                operator: In
+                values:
+                  - on-demand
+  topologySpreadConstraints:
+    maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    whenUnsatisfiable: ScheduleAnyway
+  resources:
+    requests:
+      cpu: 126m
+      memory: 425Mi
+    limits:
+      cpu: 143m
+      memory: 1Gi
+
+compactor:
+  resources:
+    requests:
+      cpu: 15m
+      memory: 933Mi
+    limits:
+      cpu: 15m
+      memory: 938Mi
+
+store_gateway:
+  podDisruptionBudget:
+    maxUnavailable: 1
+  resources:
+    requests:
+      cpu: 10m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+
+querier:
+  podDisruptionBudget:
+    maxUnavailable: 1
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: agentpool
+                operator: In
+                values:
+                  - default
+          - matchExpressions:
+              - key: karpenter.sh/capacity-type
+                operator: In
+                values:
+                  - on-demand
+  topologySpreadConstraints:
+    maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    whenUnsatisfiable: DoNotSchedule
+  resources:
+    requests:
+      cpu: 23m
+      memory: 138Mi
+    limits:
+      cpu: 23m
+      memory: 139Mi
+
+ruler:
+  # Ruler evaluates and executes all Prometheus-style recording/alerting rules.
+  # 128Mi was too low after the 3.2.0 rollout and caused repeated OOMKills.
+  # Use a higher request/limit with GOMEMLIMIT for predictable Go heap behavior.
+  env:
+    - name: GOMEMLIMIT
+      value: "384MiB"
+  resources:
+    requests:
+      cpu: 15m
+      memory: 100Mi
+    limits:
+      cpu: 15m
+      memory: 100Mi
+
+overrides_exporter:
+  resources:
+    requests:
+      cpu: 15m
+      memory: 100Mi
+    limits:
+      cpu: 15m
+      memory: 100Mi
+
+query_scheduler:
+  resources:
+    requests:
+      cpu: 15m
+      memory: 100Mi
+    limits:
+      cpu: 15m
+      memory: 100Mi
+
+rollout_operator:
+  webhooks:
+    failurePolicy: Ignore
+  resources:
+    requests:
+      cpu: 15m
+      memory: 100Mi
+    limits:
+      cpu: 15m
+      memory: 100Mi

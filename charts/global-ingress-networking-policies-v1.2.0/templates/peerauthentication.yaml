@@ -1,0 +1,20 @@
+{{- $cfg := .Values.peerAuthentication | default dict }}
+{{- if $cfg.enabled }}
+---
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: {{ $cfg.name | default "default" }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  {{- if $cfg.selector }}
+  selector:
+    {{- toYaml $cfg.selector | nindent 4 }}
+  {{- end }}
+  mtls:
+    mode: {{ $cfg.mode | default "STRICT" }}
+  {{- if $cfg.portLevelMtls }}
+  portLevelMtls:
+    {{- toYaml $cfg.portLevelMtls | nindent 4 }}
+  {{- end }}
+{{- end }}

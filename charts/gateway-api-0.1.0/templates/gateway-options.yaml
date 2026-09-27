@@ -1,0 +1,56 @@
+{{- if .Values.gatewayOptions.external.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.gatewayOptions.external.name }}
+  namespace: {{ .Values.namespace.name }}
+data:
+{{- range $key, $value := .Values.gatewayOptions.external.data }}
+  {{ $key }}: {{ $value | quote }}
+{{- end }}
+
+
+---
+{{- end }}
+
+{{- if .Values.gatewayOptions.internal.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.gatewayOptions.internal.name }}
+  namespace: {{ .Values.namespace.name }}
+data:
+{{- range $key, $value := .Values.gatewayOptions.internal.data }}
+  {{ $key }}: {{ $value | quote }}
+{{- end }}
+
+
+---
+{{- end }}
+
+{{- if .Values.gatewayOptions.waypoint.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.gatewayOptions.waypoint.name }}
+  namespace: {{ .Values.namespace.name }}
+data:
+{{- range $key, $value := .Values.gatewayOptions.waypoint.data }}
+  {{ $key }}: {{ $value | quote }}
+{{- end }}
+
+
+---
+{{- end }}
+
+{{- if .Values.gatewayOptions.waypointEgress.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.gatewayOptions.waypointEgress.name }}
+  namespace: {{ .Values.namespace.name }}
+data:
+{{- range $key, $value := .Values.gatewayOptions.waypointEgress.data }}
+  {{ $key }}: {{ $value | quote }}
+{{- end }}
+{{- end }}

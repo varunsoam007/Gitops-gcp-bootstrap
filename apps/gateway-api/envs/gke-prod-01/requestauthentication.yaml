@@ -1,0 +1,20 @@
+# JWT validation for shared-gateway-int — decodes Entra ID access tokens
+# so request.auth.claims[roles] is populated for ALLOW policies
+apiVersion: security.istio.io/v1beta1
+kind: RequestAuthentication
+metadata:
+  name: shared-gateway-int-jwt
+  namespace: gateway-api
+spec:
+  targetRefs:
+    - kind: Gateway
+      group: gateway.networking.k8s.io
+      name: shared-gateway-int
+  jwtRules:
+    - issuer: "https://login.microsoftonline.com/a47336de-50a0-418e-a3a6-0d36f185f6d4/v2.0"
+      jwksUri: "https://login.microsoftonline.com/a47336de-50a0-418e-a3a6-0d36f185f6d4/discovery/v2.0/keys"
+      audiences:
+        - "5cf4010f-3af9-4d3f-8581-19233dda0243"
+      fromHeaders:
+        - name: "Authorization"
+          prefix: "Bearer "

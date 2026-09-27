@@ -1,0 +1,108 @@
+# Shared Mimir configuration for all environments
+# Environment-specific overrides go in envs/<env>/values-additional.yaml
+
+
+ingester:
+  persistentVolume:
+    size: 10Gi
+  podDisruptionBudget:
+    maxUnavailable: 1
+
+distributor:
+  replicas: 2  # Scale to 2 for HA and PDB compatibility
+  podDisruptionBudget:
+    maxUnavailable: 1
+
+querier:
+  replicas: 2
+  podDisruptionBudget:
+    maxUnavailable: 1
+
+query_frontend:
+  replicas: 2
+  podDisruptionBudget:
+    maxUnavailable: 1
+
+store_gateway:
+  podDisruptionBudget:
+    maxUnavailable: 1
+
+# Single-replica components - disable PDB to allow Karpenter disruption
+compactor:
+  persistentVolume:
+    size: 20Gi
+  podDisruptionBudget: null
+
+alertmanager:
+  podDisruptionBudget: null
+
+ruler:
+  podDisruptionBudget: null
+  # Mount curated alert rules from ConfigMap into ruler pod
+  # Ruler reads from /etc/mimir-rules/anonymous/ (single-tenant mode)
+  extraVolumes:
+    - name: ruler-rules
+      configMap:
+        name: mimir-ruler-rules
+  extraVolumeMounts:
+    - name: ruler-rules
+      mountPath: /etc/mimir-rules/anonymous
+      readOnly: true
+
+gateway:
+  podDisruptionBudget: null
+
+overrides_exporter:
+  podDisruptionBudget: null
+
+# Mimir Configuration Limits (Consolidated from envs)
+mimir:
+  structuredConfig:
+    limits:
+      # Increase series limit to allow growth headroom (was 500k)
+      max_global_series_per_user: 3000000
+      # Increase label names per series to accommodate high-cardinality metrics
+      # (OpenCost kube_node_labels has 50+ labels, Istio metrics have 32+)
+      max_label_names_per_series: 100
+      # Raise ingestion rate to prevent HTTP 429 from Alloy remote-write bursts
+      # Default 10k/s is saturated by cadvisor + Istio + ServiceMonitor scrapes
+      ingestion_rate: 50000
+      ingestion_burst_size: 1000000
+      # Extended OOO window for WAL/WBL replay after write-path incidents.
+      out_of_order_time_window: 24h
+    # TSDB hardening - prevents ingester OOM death spiral
+    # WAL compression reduces on-disk WAL size -> less memory needed during replay after crash
+    # Reduced write buffer saves ~3MB per TSDB head (4MB -> 1MB default)
+    blocks_storage:
+      tsdb:
+        wal_compression_enabled: true
+        head_chunks_write_buffer_size_bytes: 1048576
+    # Default ingester ring config (overridden per-env)
+    ingester:
+      ring:
+        replication_factor: 3
+    # Ruler reads alert rules from local filesystem (mounted from ConfigMap)
+    # Replaces Azure blob ruler_storage - rules are managed in Git instead
+    ruler_storage:
+      backend: local
+      local:
+        directory: /etc/mimir-rules
+
+# Exclude memberlist gossip port from Istio ztunnel interception on all Mimir pods
+# Prevents TCP proxy overhead causing memberlist i/o timeouts and ring failures
+global:
+  podAnnotations:
+    traffic.istio.io/excludeInboundPorts: "7946"
+    traffic.istio.io/excludeOutboundPorts: "7946"
+
+# Disable Kafka (Overkill for baseline architecture, use Ring Replication instead)
+kafka:
+  enabled: false
+
+# Disable Ingest Storage (Linked to Kafka architecture)
+ingest_storage:
+  enabled: false
+
+# Disable MinIO (We use Azure Storage Accounts)
+minio:
+  enabled: false

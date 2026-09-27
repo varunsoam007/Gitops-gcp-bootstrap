@@ -1,0 +1,69 @@
+# Shared Tempo configuration for all environments
+# Environment-specific overrides go in envs/<env>/values-additional.yaml
+
+global:
+  priorityClassName: observability-critical
+  podLabels:
+    azure.workload.identity/use: "true"
+  # Enable ${ENV_VAR} expansion in Tempo config for Azure storage settings.
+  # NOTE: the chart also applies global.extraArgs to memcached, which breaks it
+  # (parsed as `-c` connection limit). The memcached StatefulSet strips these args
+  # via a Kustomize patch in each env's kustomization.yaml.
+  extraArgs:
+    - -config.expand-env=true
+  extraEnv:
+    - name: TEMPO_STORAGE_ACCOUNT
+      valueFrom:
+        configMapKeyRef:
+          name: tempo-azure-config
+          key: storage_account_name
+    - name: TEMPO_TRACES_CONTAINER
+      valueFrom:
+        configMapKeyRef:
+          name: tempo-azure-config
+          key: traces_container_name
+  image:
+    registry: crpinthirdpartymgtintuks001.azurecr.io   #
+
+serviceAccount:
+  create: true
+  name: tempo
+  automountServiceAccountToken: true
+  annotations:
+    # Placeholder - replaced by Kustomize from config.properties
+    azure.workload.identity/client-id: placeholder
+
+reportingEnabled: false
+multitenancyEnabled: false
+
+minio:
+  enabled: false
+
+storage:
+  trace:
+    backend: azure
+    azure:
+      storage_account_name: "${TEMPO_STORAGE_ACCOUNT}"
+      container_name: "${TEMPO_TRACES_CONTAINER}"
+      use_federated_token: true
+
+traces:
+  otlp:
+    grpc:
+      enabled: true
+    http:
+      enabled: true
+
+metaMonitoring:
+  serviceMonitor:
+    enabled: true
+
+memcached:
+  enabled: true
+  image:
+    # ACR mirrors the official image under library/memcached.
+    repository: library/memcached
+
+# Keep gateway disabled in devm baseline; query via query-frontend service.
+gateway:
+  enabled: false

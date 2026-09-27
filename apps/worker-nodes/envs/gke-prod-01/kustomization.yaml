@@ -1,0 +1,11 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# SSA required for Karpenter NodePool/AKSNodeClass status drift
+commonAnnotations:
+  argocd.argoproj.io/sync-options: ServerSideApply=true
+
+resources:
+  - ../../base
+  - generic-on-demand-nodepool.yaml
+  - generic-spot-nodepool.yaml

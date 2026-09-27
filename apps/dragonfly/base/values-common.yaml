@@ -1,0 +1,70 @@
+# Shared Dragonfly configuration for all environments
+# Dragonfly is deployed as a shared Redis-compatible cache backend
+# Can be used by Loki, Grafana, or any app needing high-performance caching
+#
+# Service endpoints:
+#   - dragonfly.dragonfly.svc.cluster.local:6379 (Redis protocol)
+
+# Use StatefulSet with persistent storage for cache durability
+storage:
+  enabled: false  # Volatile cache - data lost on pod restart (like memcached)
+
+# Service configuration - Redis-compatible endpoint
+service:
+  type: ClusterIP
+  port: 6379
+  annotations: {}
+  labels: {}
+  metrics:
+    portName: metrics
+    serviceType: ClusterIP
+
+# ServiceMonitor for Prometheus/Alloy scraping
+serviceMonitor:
+  enabled: true
+  labels: {}
+  annotations: {}
+  interval: 30s
+  scrapeTimeout: 10s
+
+# Dragonfly cache-mode settings via extraArgs
+# --cache_mode: Enable LRU eviction when memory limit is reached
+# --maxmemory: Set memory limit (should match resources.limits.memory)
+extraArgs:
+  - --cache_mode=true
+  - --proactor_threads=2
+
+# Pod security settings
+podSecurityContext:
+  fsGroup: 2000
+
+securityContext:
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 1000
+
+# Health probes - use built-in healthcheck script
+probes:
+  livenessProbe:
+    exec:
+      command:
+        - /bin/sh
+        - /usr/local/bin/healthcheck.sh
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+    successThreshold: 1
+  readinessProbe:
+    exec:
+      command:
+        - /bin/sh
+        - /usr/local/bin/healthcheck.sh
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+    successThreshold: 1

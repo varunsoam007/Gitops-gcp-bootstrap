@@ -1,0 +1,5 @@
+apiVersion: v2
+name: auth-templates
+description: Reusable templates for oauth2-proxy and M2M JWT authentication
+type: application
+version: 1.1.0

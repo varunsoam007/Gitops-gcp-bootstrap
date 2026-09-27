@@ -1,0 +1,105 @@
+image:
+  registry: crpinthirdpartymgtintuks001.azurecr.io
+  repository: falcosecurity/falco
+  tag: "0.43.0"
+
+driver:
+  loader:
+    initContainer:
+      image:
+        registry: crpinthirdpartymgtintuks001.azurecr.io
+        repository: falcosecurity/falco-driver-loader
+        tag: "0.43.0"
+      resources:
+        requests:
+          cpu: 10m
+          memory: 128Mi
+        limits:
+          memory: 128Mi
+
+nodeSelector:
+  karpenter.sh/capacity-type: on-demand
+
+customRules: #https://raw.githubusercontent.com/falcosecurity/rules/main/rules/falco_rules.yaml
+  custom-rules.yaml : |
+    - rule: Terminal shell in container
+      enabled: false
+      override:
+        enabled: replace
+    - rule: Contact K8S API Server From Container
+      enabled: true
+      override:
+        enabled: replace
+    - rule: Find AWS Credentials
+      enabled: false
+      override:
+        enabled: replace
+
+# Disable falcoctl artifact fetching - not accessible from private cluster
+# Rules are bundled with the Falco image or managed via customRules above
+falcoctl:
+  image:
+    registry: crpinthirdpartymgtintuks001.azurecr.io
+    repository: falcosecurity/falcoctl
+  artifact:
+    install:
+      enabled: false
+    follow:
+      enabled: false
+
+grafana:
+  dashboards:
+    enabled: true
+    configMaps:
+      falco:
+        name: "falco-grafana-dashboard"
+        namespace: "grafana-shared"
+
+falcosidekick:
+  image:
+    registry: crpinthirdpartymgtintuks001.azurecr.io
+    repository: falcosecurity/falcosidekick
+  enabled: true
+  nodeSelector:
+    karpenter.sh/capacity-type: on-demand
+  resources:
+    requests:
+      cpu: 15m
+      memory: 100Mi
+    limits:
+      cpu: 15m
+      memory: 100Mi
+  config:
+    prometheus:
+      enabled: true
+  serviceMonitor:
+    enabled: true
+
+falco:
+  metrics:
+    enabled: true
+    interval: 10m
+    output_rule: true
+    plugins_metrics_enabled: true
+    rules_counters_enabled: true
+    resource_utilization_enabled: true
+    state_counters_enabled: true
+    kernel_event_counters_enabled: true
+    libbpf_stats_enabled: true
+  
+  webserver:
+    enabled: true
+    listen_port: 8765
+    prometheus_metrics_enabled: true
+
+serviceMonitor:
+  enabled: true
+  create: true
+
+resources:
+  requests:
+    cpu: 63m
+    memory: 309Mi
+  limits:
+    cpu: 78m
+    memory: 425Mi

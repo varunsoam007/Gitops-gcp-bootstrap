@@ -1,0 +1,61 @@
+# Blackbox Exporter - devm-k01 (Development)
+# Probes endpoints for availability monitoring
+
+# Shorten resource names
+fullnameOverride: blackbox-exporter
+
+# Private ACR for images
+image:
+  registry: crpinthirdpartymgtintuks001.azurecr.io
+  repository: prometheus/blackbox-exporter
+
+# Use Deployment (not DaemonSet)
+kind: Deployment
+replicas: 2
+
+# Use stable Karpenter on-demand capacity
+nodeSelector:
+  karpenter.sh/capacity-type: on-demand
+
+# High priority to survive preemption
+priorityClassName: observability-critical
+
+# PDB - keep at least 1 replica available during voluntary disruptions
+podDisruptionBudget:
+  minAvailable: 1
+
+# Basic security context
+podSecurityContext:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  runAsUser: 1000
+  runAsGroup: 1000
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: ["ALL"]
+
+# Resources - req==lim (VPA upper: ~128Mi)
+resources:
+  requests:
+    cpu: 15m
+    memory: 100Mi
+  limits:
+    cpu: 15m
+    memory: 100Mi
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 9115
+
+# Enable ServiceMonitor for Alloy discovery
+serviceMonitor:
+  selfMonitor:
+    enabled: true
+    interval: 2m
+    scrapeTimeout: 30s

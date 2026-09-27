@@ -1,0 +1,20 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: cnpg-shared-daily-backup
+  namespace: cnpg-shared
+  annotations:
+    argocd.argoproj.io/sync-wave: "-4"
+    argocd.argoproj.io/sync-options: ServerSideApply=true
+spec:
+  schedule: "0 0 2 * * *"
+  backupOwnerReference: cluster
+  cluster:
+    name: cnpg-shared
+  method: plugin
+  pluginConfiguration:
+    name: barman-cloud.cloudnative-pg.io
+    parameters:
+      barmanObjectName: cnpg-shared-backup-store
+  immediate: false
+  suspend: false

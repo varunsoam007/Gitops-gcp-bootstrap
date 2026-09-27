@@ -1,0 +1,13 @@
+{{- if .Values.logging.enabled }}
+apiVersion: telemetry.istio.io/v1
+kind: Telemetry
+metadata:
+  name: {{ .Values.logging.telemetry.name }}
+  namespace: {{ .Values.namespace.name }}
+spec:
+  accessLogging:
+    - providers:
+      {{- range .Values.logging.telemetry.providers }}
+      - name: {{ .name }}
+      {{- end }}
+{{- end }}

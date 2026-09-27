@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: keda
+  annotations:
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+    argocd.argoproj.io/sync-wave: "-3"
+  labels:
+    app.kubernetes.io/name: keda-http
+    # Keep ambient on, but bind waypoint only on interceptor Service labels.
+    # This avoids forcing scaler gRPC through L7 waypoint hops.
+    istio.io/dataplane-mode: ambient
+    allow-shared-gateway-int-access: "true"
+    allow-shared-gateway-ext-access: "false"
+    istio.io/use-waypoint: keda-waypoint
+    istio.io/ingress-use-waypoint: "true"
+    networking.istio.io/traffic-distribution: PreferSameZone

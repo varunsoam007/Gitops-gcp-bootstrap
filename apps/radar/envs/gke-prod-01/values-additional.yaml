@@ -1,0 +1,9 @@
+# Environment-specific overrides for devm-k01
+image:
+  repository: crpinthirdpartymgtintuks001.azurecr.io/skyhook-io/radar
+
+auth:
+  enabled: true
+  hostname: radar.k01.devm.corp.pinpetuk.net
+  requiredRoles:
+    - "radar.access"

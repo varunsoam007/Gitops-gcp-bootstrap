@@ -1,0 +1,16 @@
+apiVersion: v2
+appVersion: 1.14.0
+description: A Helm chart for AKS Karpenter provider.
+home: https://github.com/Azure/karpenter-provider-azure/
+icon: https://repository-images.githubusercontent.com/278480393/dab059c8-caa1-4b55-aaa7-3d30e47a5616
+keywords:
+- cluster
+- node
+- scheduler
+- autoscaling
+- lifecycle
+name: karpenter
+sources:
+- https://github.com/Azure/karpenter-provider-azure/
+type: application
+version: 1.14.0

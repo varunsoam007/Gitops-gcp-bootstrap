@@ -1,0 +1,26 @@
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: grafana-shared
+  annotations:
+    argocd.argoproj.io/sync-options: ServerSideApply=true,SkipDryRunOnMissingResource=true
+    argocd.argoproj.io/sync-wave: '-1'
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    kind: SecretStore
+    name: kv-pin-aks-devm-int-uks
+  target:
+    name: grafana-shared
+    creationPolicy: Owner
+    template:
+      type: Opaque
+      data:
+        GRAFANA_API_TOKEN: '{{ index . "grafana-api-token" }}'
+  dataFrom:
+    - find:
+        path: secret
+        name:
+          regexp: "^grafana-.*"
+        conversionStrategy: Default
+        decodingStrategy: None

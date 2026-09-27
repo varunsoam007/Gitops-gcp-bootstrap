@@ -1,0 +1,23 @@
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDatasource
+metadata:
+  name: opencost-infinity
+spec:
+  allowCrossNamespaceImport: true
+  instanceSelector:
+    matchLabels:
+      dashboards: "grafana"
+  datasource:
+    name: OpenCost API
+    type: yesoreyeram-infinity-datasource
+    uid: opencost-infinity
+    access: proxy
+    url: http://opencost.opencost.svc.cluster.local:9003
+    isDefault: false
+    jsonData:
+      tlsSkipVerify: true
+      # OpenCost API documentation: https://www.opencost.io/docs/integrations/api
+      # Common endpoints:
+      # - /allocation/compute?window=1d&aggregate=namespace
+      # - /allocation/compute?window=7d&aggregate=namespace,label:app
+      # - /allocation?window=1d&aggregate=namespace

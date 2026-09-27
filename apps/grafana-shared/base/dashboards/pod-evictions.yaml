@@ -1,0 +1,945 @@
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-options: ServerSideApply=true
+  name: pod-evictions
+  labels:
+    dashboards: "grafana"
+spec:
+  instanceSelector:
+    matchLabels:
+      dashboards: "grafana"
+  folder: "Platform Components"
+  json: |
+    {
+      "annotations": {
+        "list": [
+          {
+            "builtIn": 1,
+            "datasource": {
+              "type": "grafana",
+              "uid": "-- Grafana --"
+            },
+            "enable": true,
+            "hide": true,
+            "iconColor": "rgba(0, 211, 255, 1)",
+            "name": "Annotations & Alerts",
+            "type": "dashboard"
+          }
+        ]
+      },
+      "description": "Monitors Kubernetes pod evictions on AKS spot node pools. Covers replica health, eviction events, pod restarts, node pressure, topology co-location risk, and zone distribution.",
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "links": [],
+      "liveNow": false,
+      "panels": [
+        {
+          "id": 1,
+          "type": "stat",
+          "title": "Deployments with Zero Replicas",
+          "datasource": { "type": "prometheus", "uid": "mimir" },
+          "gridPos": { "h": 3, "w": 6, "x": 0, "y": 0 },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "none",
+              "decimals": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "red",   "value": 1 }
+                ]
+              },
+              "color": { "mode": "thresholds" }
+            },
+            "overrides": []
+          },
+          "options": {
+            "colorMode": "background",
+            "graphMode": "none",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+            "textMode": "value"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "count(kube_deployment_status_replicas_available{cluster=~\"$cluster\",exported_namespace=~\"$namespace\",deployment=~\"$deployment\"} == 0 and kube_deployment_spec_replicas{cluster=~\"$cluster\",exported_namespace=~\"$namespace\",deployment=~\"$deployment\"} > 0) or vector(0)",
+              "instant": true
+            }
+          ],
+          "description": "Number of deployments with 0 available replicas. Red = any deployment is completely down."
+        },
+        {
+          "id": 2,
+          "type": "stat",
+          "title": "Deployments with Missing Replicas",
+          "datasource": { "type": "prometheus", "uid": "mimir" },
+          "gridPos": { "h": 3, "w": 6, "x": 6, "y": 0 },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "none",
+              "decimals": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green",  "value": null },
+                  { "color": "yellow", "value": 1 },
+                  { "color": "red",    "value": 5 }
+                ]
+              },
+              "color": { "mode": "thresholds" }
+            },
+            "overrides": []
+          },
+          "options": {
+            "colorMode": "background",
+            "graphMode": "none",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+            "textMode": "value"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "count(kube_deployment_status_replicas_available{cluster=~\"$cluster\",exported_namespace=~\"$namespace\",deployment=~\"$deployment\"} < kube_deployment_spec_replicas{cluster=~\"$cluster\",exported_namespace=~\"$namespace\",deployment=~\"$deployment\"}) or vector(0)",
+              "instant": true
+            }
+          ],
+          "description": "Deployments where available replicas < desired replicas. Indicates partial outage."
+        },
+        {
+          "id": 3,
+          "type": "stat",
+          "title": "Evicted Pods (Active)",
+          "datasource": { "type": "prometheus", "uid": "mimir" },
+          "gridPos": { "h": 3, "w": 6, "x": 12, "y": 0 },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "none",
+              "decimals": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green",  "value": null },
+                  { "color": "yellow", "value": 1 },
+                  { "color": "red",    "value": 3 }
+                ]
+              },
+              "color": { "mode": "thresholds" }
+            },
+            "overrides": []
+          },
+          "options": {
+            "colorMode": "background",
+            "graphMode": "none",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+            "textMode": "value"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum(kube_pod_status_reason{cluster=~\"$cluster\",exported_namespace=~\"$namespace\",reason=\"Evicted\"} == 1) or vector(0)",
+              "instant": true
+            }
+          ],
+          "description": "Pods currently in Evicted state across selected namespaces."
+        },
+        {
+          "id": 4,
+          "type": "stat",
+          "title": "Spot Nodes",
+          "datasource": { "type": "prometheus", "uid": "mimir" },
+          "gridPos": { "h": 3, "w": 6, "x": 18, "y": 0 },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "none",
+              "decimals": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "blue", "value": null }
+                ]
+              },
+              "color": { "mode": "thresholds" }
+            },
+            "overrides": []
+          },
+          "options": {
+            "colorMode": "background",
+            "graphMode": "none",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+            "textMode": "value"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "count(max by (node, cluster, label_karpenter_sh_nodepool) (kube_node_labels{cluster=~\"$cluster\",label_karpenter_sh_nodepool=~\".+spot.*\"})) or vector(0)",
+              "instant": true
+            }
+          ],
+          "description": "Number of Karpenter-managed spot nodes currently registered in the cluster (matches any nodepool with 'spot' in the name)."
+        },
+        {
+          "id": 5,
+          "type": "row",
+          "title": "Replica Health",
+          "collapsed": false,
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 3 },
+          "panels": []
+        },
+        {
+          "id": 6,
+          "type": "timeseries",
+          "title": "Available vs Desired Replicas",
+          "datasource": { "type": "prometheus", "uid": "mimir" },
+          "gridPos": { "h": 9, "w": 24, "x": 0, "y": 4 },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "decimals": 0,
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 10,
+                "spanNulls": false
+              }
+            },
+            "overrides": [
+              {
+                "matcher": { "id": "byFrameRefID", "options": "A" },
+                "properties": [
+                  { "id": "custom.lineStyle", "value": { "dash": [8, 4], "fill": "dash" } }
+                ]
+              }
+            ]
+          },
+          "options": {
+            "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "min"] },
+            "tooltip": { "mode": "multi", "sort": "none" }
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum by (exported_namespace, deployment) (kube_deployment_spec_replicas{cluster=~\"$cluster\",exported_namespace=~\"$namespace\",deployment=~\"$deployment\"})",
+              "legendFormat": "Desired — {{exported_namespace}}/{{deployment}}"
+            },
+            {
+              "refId": "B",
+              "expr": "sum by (exported_namespace, deployment) (kube_deployment_status_replicas_available{cluster=~\"$cluster\",exported_namespace=~\"$namespace\",deployment=~\"$deployment\"})",
+              "legendFormat": "Available — {{exported_namespace}}/{{deployment}}"
+            }
+          ],
+          "description": "Desired replica count (dashed) vs available replica count (solid) per deployment. A gap indicates a partial or full outage."
+        },
+        {
+          "id": 7,
+          "type": "row",
+          "title": "Pod Eviction Events & Restarts",
+          "collapsed": false,
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 13 },
+          "panels": []
+        },
+        {
+          "id": 8,
+          "type": "timeseries",
+          "title": "Pod Eviction Events Over Time",
+          "datasource": { "type": "prometheus", "uid": "mimir" },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 14 },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "decimals": 0,
+              "color": { "mode": "palette-classic" },
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 20,
+                "drawStyle": "bars",
+                "barAlignment": 0,
+                "spanNulls": false
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["sum"] },
+            "tooltip": { "mode": "multi", "sort": "desc" }
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum by (exported_namespace, pod) (kube_pod_status_reason{cluster=~\"$cluster\",exported_namespace=~\"$namespace\",reason=\"Evicted\"} == 1)",
+              "legendFormat": "{{exported_namespace}}/{{pod}}"
+            }
+          ],
+          "description": "Pods currently in Evicted state, grouped by namespace and pod name. Each bar represents a pod that is evicted at that point in time."
+        },
+        {
+          "id": 9,
+          "type": "timeseries",
+          "title": "Pod Restart Count Rate",
+          "datasource": { "type": "prometheus", "uid": "mimir" },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 14 },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "decimals": 2,
+              "color": { "mode": "palette-classic" },
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 10,
+                "spanNulls": false
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["max", "sum"] },
+            "tooltip": { "mode": "multi", "sort": "desc" }
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum by (exported_namespace, pod) (increase(kube_pod_container_status_restarts_total{cluster=~\"$cluster\",exported_namespace=~\"$namespace\"}[5m]) > 0)",
+              "legendFormat": "{{exported_namespace}}/{{pod}}"
+            }
+          ],
+          "description": "Pod container restart rate (restarts per 5-minute window). Spikes indicate pods crashing after eviction or scheduling issues."
+        },
+        {
+          "id": 10,
+          "type": "row",
+          "title": "Pod State & Node Conditions",
+          "collapsed": false,
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 22 },
+          "panels": []
+        },
+        {
+          "id": 11,
+          "type": "timeseries",
+          "title": "Pod Phase Distribution",
+          "datasource": { "type": "prometheus", "uid": "mimir" },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 23 },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "decimals": 0,
+              "color": { "mode": "palette-classic" },
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 20,
+                "spanNulls": false
+              }
+            },
+            "overrides": [
+              {
+                "matcher": { "id": "byName", "options": "Running" },
+                "properties": [{ "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }]
+              },
+              {
+                "matcher": { "id": "byName", "options": "Pending" },
+                "properties": [{ "id": "color", "value": { "fixedColor": "yellow", "mode": "fixed" } }]
+              },
+              {
+                "matcher": { "id": "byName", "options": "Failed" },
+                "properties": [{ "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }]
+              },
+              {
+                "matcher": { "id": "byName", "options": "Succeeded" },
+                "properties": [{ "id": "color", "value": { "fixedColor": "blue", "mode": "fixed" } }]
+              }
+            ]
+          },
+          "options": {
+            "legend": { "displayMode": "list", "placement": "bottom", "calcs": [] },
+            "tooltip": { "mode": "multi", "sort": "none" }
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum by (phase) (kube_pod_status_phase{cluster=~\"$cluster\",exported_namespace=~\"$namespace\"})",
+              "legendFormat": "{{phase}}"
+            }
+          ],
+          "description": "Pod phase counts over time (Running/Pending/Failed/Succeeded/Unknown). A rise in Pending or Failed indicates scheduling or eviction pressure."
+        },
+        {
+          "id": 12,
+          "type": "timeseries",
+          "title": "Node Pressure Conditions (Spot Nodes)",
+          "datasource": { "type": "prometheus", "uid": "mimir" },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 23 },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "decimals": 0,
+              "color": { "mode": "palette-classic" },
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 10,
+                "spanNulls": false
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull"] },
+            "tooltip": { "mode": "multi", "sort": "none" }
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "max by (node, condition) (kube_node_status_condition{cluster=~\"$cluster\",condition=~\"MemoryPressure|DiskPressure|PIDPressure\",status=\"true\"} == 1)",
+              "legendFormat": "{{node}} — {{condition}}"
+            },
+            {
+              "refId": "B",
+              "expr": "count by (node) (max by (node, cluster, label_karpenter_sh_nodepool) (kube_node_labels{cluster=~\"$cluster\",label_karpenter_sh_nodepool=~\".+spot.*\"}) * on(node, cluster) group_left() (max by (node, cluster) (kube_node_status_condition{cluster=~\"$cluster\",condition=\"Ready\",status=\"true\"} == 1)))",
+              "legendFormat": "Spot node up: {{node}}"
+            }
+          ],
+          "description": "Active node pressure conditions (MemoryPressure, DiskPressure, PIDPressure) that trigger pod evictions, with spot node availability overlay."
+        },
+        {
+          "id": 13,
+          "type": "row",
+          "title": "Topology & Co-location Risk",
+          "collapsed": false,
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 31 },
+          "panels": []
+        },
+        {
+          "id": 14,
+          "type": "table",
+          "title": "Pods per Node (Co-location Heatmap)",
+          "datasource": { "type": "prometheus", "uid": "mimir" },
+          "gridPos": { "h": 10, "w": 12, "x": 0, "y": 32 },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "decimals": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green",  "value": null },
+                  { "color": "yellow", "value": 2 },
+                  { "color": "red",    "value": 3 }
+                ]
+              },
+              "custom": { "displayMode": "color-background" }
+            },
+            "overrides": [
+              {
+                "matcher": { "id": "byName", "options": "Time" },
+                "properties": [{ "id": "custom.hidden", "value": true }]
+              },
+              {
+                "matcher": { "id": "byName", "options": "Value" },
+                "properties": [{ "id": "displayName", "value": "Pod Count" }]
+              }
+            ]
+          },
+          "options": {
+            "showHeader": true,
+            "sortBy": [{ "displayName": "Pod Count", "desc": true }],
+            "footer": { "show": false, "reducer": ["sum"], "countRows": false, "fields": "" }
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "count by (exported_namespace, node, created_by_name) (kube_pod_info{cluster=~\"$cluster\",exported_namespace=~\"$namespace\",created_by_kind=\"ReplicaSet\"})",
+              "instant": true,
+              "format": "table",
+              "legendFormat": ""
+            }
+          ],
+          "transformations": [
+            { "id": "organize", "options": { "renameByName": { "exported_namespace": "Namespace", "node": "Node", "created_by_name": "ReplicaSet", "Value": "Pod Count" } } }
+          ],
+          "description": "Number of pods from the same ReplicaSet running on the same node. Yellow=2 pods on same node (topologySpreadConstraint bypass risk), Red=3+ (critical co-location). Spot eviction of that node would take down all of them."
+        },
+        {
+          "id": 15,
+          "type": "table",
+          "title": "Pod Distribution by Availability Zone",
+          "datasource": { "type": "prometheus", "uid": "mimir" },
+          "gridPos": { "h": 10, "w": 12, "x": 12, "y": 32 },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "decimals": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green",  "value": null },
+                  { "color": "yellow", "value": 2 },
+                  { "color": "red",    "value": 4 }
+                ]
+              },
+              "custom": { "displayMode": "color-background" }
+            },
+            "overrides": [
+              {
+                "matcher": { "id": "byName", "options": "Time" },
+                "properties": [{ "id": "custom.hidden", "value": true }]
+              },
+              {
+                "matcher": { "id": "byName", "options": "Value" },
+                "properties": [{ "id": "displayName", "value": "Pod Count" }]
+              }
+            ]
+          },
+          "options": {
+            "showHeader": true,
+            "sortBy": [{ "displayName": "Pod Count", "desc": true }],
+            "footer": { "show": false, "reducer": ["sum"], "countRows": false, "fields": "" }
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "count by (exported_namespace, label_topology_kubernetes_io_zone, created_by_name) (kube_pod_info{cluster=~\"$cluster\",exported_namespace=~\"$namespace\",created_by_kind=\"ReplicaSet\"} * on(node, cluster) group_left(label_topology_kubernetes_io_zone) max by (node, cluster, label_topology_kubernetes_io_zone) (kube_node_labels{cluster=~\"$cluster\"}))",
+              "instant": true,
+              "format": "table",
+              "legendFormat": ""
+            }
+          ],
+          "transformations": [
+            { "id": "organize", "options": { "renameByName": { "exported_namespace": "Namespace", "label_topology_kubernetes_io_zone": "Zone", "created_by_name": "ReplicaSet", "Value": "Pod Count" } } }
+          ],
+          "description": "Replica distribution across availability zones per ReplicaSet. A high count in a single zone means zone-level spot eviction would cause a major outage."
+        },
+        {
+          "id": 16,
+          "type": "row",
+          "title": "Live Pod Topology (Node & Zone)",
+          "collapsed": false,
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 42 },
+          "panels": []
+        },
+        {
+          "id": 17,
+          "type": "table",
+          "title": "Pod → Node & Zone Mapping",
+          "datasource": { "type": "prometheus", "uid": "mimir" },
+          "gridPos": { "h": 12, "w": 24, "x": 0, "y": 43 },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {}
+            },
+            "overrides": [
+              {
+                "matcher": { "id": "byName", "options": "Time" },
+                "properties": [{ "id": "custom.hidden", "value": true }]
+              },
+              {
+                "matcher": { "id": "byName", "options": "Value" },
+                "properties": [{ "id": "custom.hidden", "value": true }]
+              },
+              {
+                "matcher": { "id": "byName", "options": "cluster" },
+                "properties": [{ "id": "custom.hidden", "value": true }]
+              }
+            ]
+          },
+          "options": {
+            "showHeader": true,
+            "sortBy": [{ "displayName": "Namespace", "desc": false }],
+            "footer": { "show": false, "reducer": ["sum"], "countRows": false, "fields": "" }
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "kube_pod_info{cluster=~\"$cluster\",exported_namespace=~\"$namespace\",created_by_kind=\"ReplicaSet\"} * on(node, cluster) group_left(label_topology_kubernetes_io_zone) max by (node, cluster, label_topology_kubernetes_io_zone) (kube_node_labels{cluster=~\"$cluster\"})",
+              "instant": true,
+              "format": "table",
+              "legendFormat": ""
+            }
+          ],
+          "transformations": [
+            {
+              "id": "organize",
+              "options": {
+                "renameByName": {
+                  "exported_namespace": "Namespace",
+                  "exported_pod": "Pod",
+                  "pod": "Pod",
+                  "node": "Node",
+                  "label_topology_kubernetes_io_zone": "Zone",
+                  "created_by_name": "ReplicaSet",
+                  "host_ip": "Node IP",
+                  "pod_ip": "Pod IP"
+                },
+                "indexByName": {
+                  "exported_namespace": 0,
+                  "created_by_name": 1,
+                  "exported_pod": 2,
+                  "node": 3,
+                  "label_topology_kubernetes_io_zone": 4
+                }
+              }
+            }
+          ],
+          "description": "Live view of which pod is running on which node and zone. Use this to identify co-location (same node) and zone skew. Filter by namespace and deployment using the template variables above."
+        },
+        {
+          "id": 18,
+          "type": "row",
+          "title": "Recovery Time",
+          "collapsed": false,
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 55 },
+          "panels": []
+        },
+        {
+          "id": 19,
+          "type": "table",
+          "title": "Pods Stuck in Pending / Non-Running (Recovery Indicator)",
+          "datasource": { "type": "prometheus", "uid": "mimir" },
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 56 },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "decimals": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green",  "value": null },
+                  { "color": "yellow", "value": 60 },
+                  { "color": "orange", "value": 300 },
+                  { "color": "red",    "value": 600 }
+                ]
+              },
+              "custom": { "displayMode": "color-background" }
+            },
+            "overrides": [
+              {
+                "matcher": { "id": "byName", "options": "Time" },
+                "properties": [{ "id": "custom.hidden", "value": true }]
+              },
+              {
+                "matcher": { "id": "byName", "options": "Value" },
+                "properties": [{ "id": "displayName", "value": "Seconds Since Start" }]
+              }
+            ]
+          },
+          "options": {
+            "showHeader": true,
+            "sortBy": [{ "displayName": "Seconds Since Start", "desc": true }],
+            "footer": { "show": false, "reducer": ["sum"], "countRows": false, "fields": "" }
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "(time() - kube_pod_start_time{cluster=~\"$cluster\",exported_namespace=~\"$namespace\"}) * on(pod, exported_namespace, cluster) group_left() (kube_pod_status_phase{cluster=~\"$cluster\",exported_namespace=~\"$namespace\",phase=\"Pending\"} == 1)",
+              "instant": true,
+              "format": "table",
+              "legendFormat": ""
+            }
+          ],
+          "transformations": [
+            { "id": "organize", "options": { "renameByName": { "exported_namespace": "Namespace", "pod": "Pod", "Value": "Seconds Since Start" } } }
+          ],
+          "description": "Pods currently in Pending phase and how long they have been in that state since their start time. Values over 60s (yellow) or 300s (orange) indicate a scheduling or recovery problem. Red = >10 minutes stuck."
+        },
+        {
+          "id": 20,
+          "type": "row",
+          "title": "Unavailability Detail",
+          "collapsed": false,
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 64 },
+          "panels": []
+        },
+        {
+          "id": 21,
+          "type": "timeseries",
+          "title": "Available vs Desired Replicas \u2014 Degraded Deployments Only",
+          "datasource": { "type": "prometheus", "uid": "mimir" },
+          "gridPos": { "h": 10, "w": 24, "x": 0, "y": 65 },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "decimals": 0,
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 15,
+                "spanNulls": false
+              }
+            },
+            "overrides": [
+              {
+                "matcher": { "id": "byFrameRefID", "options": "A" },
+                "properties": [
+                  { "id": "custom.lineStyle", "value": { "dash": [8, 4], "fill": "dash" } }
+                ]
+              },
+              {
+                "matcher": { "id": "byFrameRefID", "options": "B" },
+                "properties": [
+                  { "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }
+                ]
+              }
+            ]
+          },
+          "options": {
+            "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["min", "lastNotNull"] },
+            "tooltip": { "mode": "multi", "sort": "none" }
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum by (exported_namespace, deployment) (kube_deployment_spec_replicas{cluster=~\"$cluster\",exported_namespace=~\"$namespace\",deployment=~\"$deployment\"} and on(exported_namespace, deployment, cluster) (kube_deployment_status_replicas_available{cluster=~\"$cluster\",exported_namespace=~\"$namespace\",deployment=~\"$deployment\"} < kube_deployment_spec_replicas{cluster=~\"$cluster\",exported_namespace=~\"$namespace\",deployment=~\"$deployment\"}))",
+              "legendFormat": "Desired \u2014 {{exported_namespace}}/{{deployment}}"
+            },
+            {
+              "refId": "B",
+              "expr": "sum by (exported_namespace, deployment) (kube_deployment_status_replicas_available{cluster=~\"$cluster\",exported_namespace=~\"$namespace\",deployment=~\"$deployment\"} and on(exported_namespace, deployment, cluster) (kube_deployment_status_replicas_available{cluster=~\"$cluster\",exported_namespace=~\"$namespace\",deployment=~\"$deployment\"} < kube_deployment_spec_replicas{cluster=~\"$cluster\",exported_namespace=~\"$namespace\",deployment=~\"$deployment\"}))",
+              "legendFormat": "Available \u2014 {{exported_namespace}}/{{deployment}}"
+            }
+          ],
+          "description": "Shows only deployments that have had available < desired at some point in the time range. Desired is dashed, available is solid red. Filter to a specific namespace or deployment using the variables above."
+        },
+        {
+          "id": 22,
+          "type": "timeseries",
+          "title": "Pod Failure Reasons Over Time",
+          "datasource": { "type": "prometheus", "uid": "mimir" },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 75 },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "decimals": 0,
+              "color": { "mode": "palette-classic" },
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 20,
+                "drawStyle": "bars",
+                "spanNulls": false
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["max"] },
+            "tooltip": { "mode": "multi", "sort": "desc" }
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum by (exported_namespace, reason) (kube_pod_status_reason{cluster=~\"$cluster\",exported_namespace=~\"$namespace\",reason!=\"\"} == 1)",
+              "legendFormat": "{{exported_namespace}} \u2014 {{reason}}"
+            }
+          ],
+          "description": "Count of pods in each failure reason state (Evicted, NodeLost, etc.) over time, grouped by namespace. A spike shows when a batch of pods were evicted or lost."
+        },
+        {
+          "id": 23,
+          "type": "timeseries",
+          "title": "Container Last Termination Reason Over Time",
+          "datasource": { "type": "prometheus", "uid": "mimir" },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 75 },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "decimals": 0,
+              "color": { "mode": "palette-classic" },
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 20,
+                "drawStyle": "bars",
+                "spanNulls": false
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["max"] },
+            "tooltip": { "mode": "multi", "sort": "desc" }
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum by (exported_namespace, reason) (kube_pod_container_status_last_terminated_reason{cluster=~\"$cluster\",exported_namespace=~\"$namespace\",reason!=\"Completed\",reason!=\"\"} == 1)",
+              "legendFormat": "{{exported_namespace}} \u2014 {{reason}}"
+            }
+          ],
+          "description": "Count of containers whose last termination had a non-Completed reason (OOMKilled, Error, etc.) over time. Correlate spikes with the replica dip in the panel above."
+        },
+        {
+          "id": 24,
+          "type": "table",
+          "title": "Current Pod Failure Reasons (Now)",
+          "datasource": { "type": "prometheus", "uid": "mimir" },
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 83 },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {}
+            },
+            "overrides": [
+              {
+                "matcher": { "id": "byName", "options": "Time" },
+                "properties": [{ "id": "custom.hidden", "value": true }]
+              },
+              {
+                "matcher": { "id": "byName", "options": "Value" },
+                "properties": [{ "id": "custom.hidden", "value": true }]
+              },
+              {
+                "matcher": { "id": "byName", "options": "Pod Reason" },
+                "properties": [
+                  {
+                    "id": "mappings",
+                    "value": [
+                      { "type": "value", "options": { "Evicted":   { "color": "red",    "index": 0, "text": "Evicted" } } },
+                      { "type": "value", "options": { "NodeLost":  { "color": "red",    "index": 1, "text": "NodeLost" } } },
+                      { "type": "value", "options": { "OOMKilled": { "color": "orange", "index": 2, "text": "OOMKilled" } } },
+                      { "type": "value", "options": { "Error":     { "color": "yellow", "index": 3, "text": "Error" } } }
+                    ]
+                  },
+                  { "id": "custom.displayMode", "value": "color-background" }
+                ]
+              },
+              {
+                "matcher": { "id": "byName", "options": "Last Exit Reason" },
+                "properties": [
+                  {
+                    "id": "mappings",
+                    "value": [
+                      { "type": "value", "options": { "OOMKilled": { "color": "orange", "index": 0, "text": "OOMKilled" } } },
+                      { "type": "value", "options": { "Error":     { "color": "yellow", "index": 1, "text": "Error" } } }
+                    ]
+                  },
+                  { "id": "custom.displayMode", "value": "color-background" }
+                ]
+              }
+            ]
+          },
+          "options": {
+            "showHeader": true,
+            "sortBy": [{ "displayName": "Namespace", "desc": false }],
+            "footer": { "show": false, "reducer": ["sum"], "countRows": false, "fields": "" }
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "max by (exported_namespace, exported_pod, reason) (kube_pod_status_reason{cluster=~\"$cluster\",exported_namespace=~\"$namespace\",reason!=\"\"} == 1)",
+              "instant": true,
+              "format": "table",
+              "legendFormat": ""
+            },
+            {
+              "refId": "B",
+              "expr": "max by (exported_namespace, exported_pod, container, reason) (kube_pod_container_status_last_terminated_reason{cluster=~\"$cluster\",exported_namespace=~\"$namespace\",reason!=\"Completed\",reason!=\"\"} == 1)",
+              "instant": true,
+              "format": "table",
+              "legendFormat": ""
+            }
+          ],
+          "transformations": [
+            {
+              "id": "organize",
+              "options": {
+                "renameByName": {
+                  "exported_namespace": "Namespace",
+                  "exported_pod": "Pod",
+                  "container": "Container",
+                  "reason": "Pod Reason"
+                }
+              }
+            }
+          ],
+          "description": "Snapshot of pods currently in a failed state right now. Query A: pod-level reasons (Evicted, NodeLost). Query B: container last exit reason (OOMKilled, Error). Use alongside the time series above to identify what's still broken vs what already recovered."
+        }
+      ],
+      "refresh": "30s",
+      "schemaVersion": 41,
+      "style": "dark",
+      "tags": [
+        "spot",
+        "evictions",
+        "aks",
+        "reliability",
+        "topology"
+      ],
+      "templating": {
+        "list": [
+          {
+            "current": {},
+            "datasource": { "type": "prometheus", "uid": "mimir" },
+            "definition": "label_values(kube_deployment_spec_replicas, cluster)",
+            "hide": 0,
+            "includeAll": false,
+            "multi": false,
+            "name": "cluster",
+            "label": "Cluster",
+            "options": [],
+            "query": {
+              "query": "label_values(kube_deployment_spec_replicas, cluster)",
+              "refId": "StandardVariableQuery"
+            },
+            "refresh": 2,
+            "regex": "",
+            "sort": 1,
+            "type": "query"
+          },
+          {
+            "current": {},
+            "datasource": { "type": "prometheus", "uid": "mimir" },
+            "definition": "label_values(kube_deployment_spec_replicas{cluster=~\"$cluster\"}, exported_namespace)",
+            "hide": 0,
+            "includeAll": true,
+            "multi": true,
+            "name": "namespace",
+            "label": "Namespace",
+            "options": [],
+            "query": {
+              "query": "label_values(kube_deployment_spec_replicas{cluster=~\"$cluster\"}, exported_namespace)",
+              "refId": "StandardVariableQuery"
+            },
+            "refresh": 2,
+            "regex": "",
+            "sort": 1,
+            "type": "query",
+            "allValue": ".*"
+          },
+          {
+            "current": {},
+            "datasource": { "type": "prometheus", "uid": "mimir" },
+            "definition": "label_values(kube_deployment_spec_replicas{cluster=~\"$cluster\",exported_namespace=~\"$namespace\"}, deployment)",
+            "hide": 0,
+            "includeAll": true,
+            "multi": true,
+            "name": "deployment",
+            "label": "Deployment",
+            "options": [],
+            "query": {
+              "query": "label_values(kube_deployment_spec_replicas{cluster=~\"$cluster\",exported_namespace=~\"$namespace\"}, deployment)",
+              "refId": "StandardVariableQuery"
+            },
+            "refresh": 2,
+            "regex": "",
+            "sort": 1,
+            "type": "query",
+            "allValue": ".*"
+          }
+        ]
+      },
+      "time": { "from": "now-24h", "to": "now" },
+      "timepicker": {
+        "refresh_intervals": ["30s", "1m", "5m", "15m"],
+        "time_options": ["30m", "1h", "3h", "6h", "12h", "24h", "2d", "7d"]
+      },
+      "timezone": "browser",
+      "title": "Pod Evictions — AKS Spot Nodes",
+      "uid": "spot-pod-evictions-aks",
+      "version": 1,
+      "weekStart": ""
+    }

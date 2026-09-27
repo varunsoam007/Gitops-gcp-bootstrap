@@ -1,0 +1,3 @@
+pod:
+  # Keep disabled by default. Temporarily set to 1 via GitOps when needed.
+  replicaCount: 0

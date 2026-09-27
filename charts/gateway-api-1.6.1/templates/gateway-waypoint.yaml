@@ -1,0 +1,62 @@
+{{- if .Values.waypointGateway.enabled }}
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: {{ .Values.waypointGateway.name }}
+  namespace: {{ .Values.namespace.name }}
+{{- with .Values.waypointGateway.annotations }}
+  annotations:
+{{- range $key, $value := . }}
+    {{ $key }}: {{ $value | quote }}
+{{- end }}
+{{- end }}
+  labels:
+    istio.io/waypoint-for: service
+spec:
+  gatewayClassName: {{ .Values.waypointGateway.className }}
+  infrastructure:
+    parametersRef:
+      group: ""
+      kind: ConfigMap
+      name: {{ .Values.gatewayOptions.waypoint.name }}
+  listeners:
+  - name: mesh
+    port: 15008
+    protocol: HBONE
+    allowedRoutes:
+      namespaces:
+        from: Selector
+        selector:
+          matchLabels:
+            allow-shared-waypoint-access: "true"
+
+
+---
+{{- if .Values.waypointGateway.egress.enabled }}
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: {{ .Values.waypointGateway.egress.name }}
+  namespace: {{ .Values.namespace.name }}
+{{- with .Values.waypointGateway.egress.annotations }}
+  annotations:
+{{- range $key, $value := . }}
+    {{ $key }}: {{ $value | quote }}
+{{- end }}
+{{- end }}
+spec:
+  gatewayClassName: {{ .Values.waypointGateway.egress.className }}
+  infrastructure:
+    parametersRef:
+      group: ""
+      kind: ConfigMap
+      name: {{ .Values.gatewayOptions.waypointEgress.name }}
+  listeners:
+  - name: mesh
+    port: 15008
+    protocol: HBONE
+    allowedRoutes:
+      namespaces:
+        from: All
+{{- end }}
+{{- end }}

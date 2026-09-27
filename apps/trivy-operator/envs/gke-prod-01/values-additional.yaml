@@ -1,0 +1,44 @@
+# ServiceAccount with workload identity - client_id replaced by Kustomize
+serviceAccount:
+  annotations:
+    azure.workload.identity/client-id: placeholder
+
+# operator pod resources (VPA upper ~789Mi)
+resources:
+  requests:
+    cpu: 23m
+    memory: 933Mi
+  limits:
+    cpu: 23m
+    memory: 938Mi
+
+nodeSelector:
+  karpenter.sh/capacity-type: on-demand
+
+tolerations: []
+
+affinity:
+  nodeAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution: []
+
+# Run scanner and node-collector jobs on on-demand nodes only.
+trivyOperator:
+  scanJobNodeSelector:
+    karpenter.sh/capacity-type: on-demand
+  scanJobAffinity:
+    nodeAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution: []
+
+nodeCollector:
+  useNodeSelector: false
+
+# trivy-server OOMs in devm match the tstm failure mode; keep values aligned.
+trivy:
+  server:
+    resources:
+      requests:
+        cpu: 15m
+        memory: 215Mi
+      limits:
+        cpu: 15m
+        memory: 216Mi

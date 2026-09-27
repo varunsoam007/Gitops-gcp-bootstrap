@@ -1,0 +1,46 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  # Folders
+  - folder-platform-components.yaml
+  - folder-finops.yaml
+  - folder-logging.yaml
+
+  # Security & Compliance
+  - ds-trivy.yaml
+  - trivy-operator.yaml
+
+  # Kubernetes Core Monitoring
+  - kubernetes-core
+  - persistent-volumes.yaml
+  - pod-evictions.yaml
+
+  # Istio Service Mesh
+  - istio
+
+  # Autoscaling
+  - karpenter
+
+  # FinOps
+  - opencost-dashboard.yaml
+  - acr-storage-overview.yaml
+
+  # Authentication
+  - platform-auth.yaml
+
+  # AAE
+  - folder-aae-analytics.yaml
+
+  # Logging (Loki)
+  - kubernetes-logs-explorer.yaml
+  - error-logs-overview.yaml
+
+  # Mimir
+  - mimir
+
+  # Tempo
+  - tempo
+
+  # Alloy
+  - alloy

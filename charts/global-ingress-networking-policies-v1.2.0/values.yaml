@@ -1,0 +1,154 @@
+# Default deny-all ingress policy
+# Creates an AuthorizationPolicy that denies all inbound traffic by default
+# Configure action to AUDIT for testing before enforcing with DENY
+defaultDenyAll:
+  enabled: true
+  name: default-deny-all-ingress
+  action: AUDIT  # Change to DENY to enforce blocking
+
+waypoint:
+  name: waypoint
+
+# Rewrite default Istio/Envoy deny payloads to a consistent JSON body.
+authzDenyRewrite:
+  enabled: true
+  # Optional explicit resource name. Leave empty to auto-name from Helm release.
+  name: ""
+  targetPorts:
+    - 15008
+  match:
+    extAuthzDenied: "ext_authz_denied"
+    rbacPrefix: "rbac_access_denied_matched_policy"
+  response:
+    contentType: "application/json"
+    error: "unauthorised"
+    message: "You are not permitted to access this resource"
+
+# Optional local waypoint resource bundle.
+# Enable this to render waypoint ConfigMap/Gateway/Telemetry from this chart,
+# so app overlays do not need standalone waypoint YAML files.
+waypointResources:
+  enabled: true
+
+  gateway:
+    # Optional explicit gateway name. If empty, chart uses waypoint.name.
+    # If waypoint.name is default/empty, chart auto-generates <release-namespace>-waypoint.
+    name: ""
+    labels:
+      istio.io/waypoint-for: all
+    annotations:
+      argocd.argoproj.io/sync-wave: "-1"
+    gatewayClassName: istio-waypoint
+    listeners:
+      - name: mesh
+        port: 15008
+        protocol: HBONE
+        allowedRoutes:
+          namespaces:
+            from: Same
+    infrastructure:
+      enabled: true
+      parametersRef:
+        group: ""
+        kind: ConfigMap
+        name: gw-options-waypoint
+
+  configMap:
+    enabled: true
+    name: gw-options-waypoint
+    annotations:
+      argocd.argoproj.io/sync-wave: "-1"
+    # Generic defaults that mirror the current waypoint options pattern.
+    horizontalPodAutoscaler:
+      enabled: true
+      # minReplicas 2 for HA: keeps a waypoint pod serving during node drains,
+      # spot evictions, or a single pod crash. Drop to 1 only as an exception.
+      minReplicas: 2
+      maxReplicas: 3
+      cpuAverageUtilization: 60
+    podDisruptionBudget:
+      enabled: true
+      minAvailable: 1
+    deployment:
+      enabled: true
+      # JSON access logs make accepted vs denied traffic easy to inspect
+      # (for example 2xx accepted, 403 denied by policy).
+      proxyConfigJson: '{"accessLogFile":"/dev/stdout","accessLogEncoding":"JSON"}'
+      # Production-safe defaults. Raise verbosity (e.g. default:debug / debug /
+      # misc:info) only as a temporary, per-app exception when troubleshooting.
+      # Maps to pilot-agent --log_output_level
+      agentLogLevel: "default:info"
+      # Maps to pilot-agent --proxyLogLevel
+      proxyLogLevel: "warning"
+      # Maps to pilot-agent --proxyComponentLogLevel
+      proxyComponentLogLevel: "misc:error"
+      # Memory limit sized to avoid OOM/eviction of waypoint pods (a 128Mi limit
+      # has caused evictions under load / on spot nodes). Override per app only
+      # when a workload genuinely needs more headroom.
+      proxyResources:
+        requests:
+          cpu: 10m
+          memory: 128Mi
+        limits:
+          memory: 256Mi
+      tolerations:
+        - effect: NoSchedule
+          key: kubernetes.azure.com/scalesetpriority
+          operator: Equal
+          value: spot
+    # Optional raw additions/overrides for advanced customisation.
+    # Values must be strings containing valid YAML fragments.
+    extraData: {}
+
+  telemetry:
+    enabled: true
+    # Optional explicit telemetry name. Defaults to <waypoint-name>-access-logs.
+    name: ""
+    accessLogging:
+      - providers:
+          - name: envoy
+        disabled: false
+
+# Optional namespace-level PeerAuthentication.
+# Defines mutual TLS (mTLS) requirements for incoming connections.
+# Ref: https://istio.io/latest/docs/reference/config/security/peer_authentication/
+#
+# In ambient mode, security (HBONE + mTLS between ztunnels) is enabled
+# transparently by the ztunnel node agent, so:
+#   - DISABLE mode is NOT supported.
+#   - STRICT mode is still useful: it ensures connections that BYPASS the mesh
+#     (e.g. plaintext sent directly to a pod IP by a non-mesh client) are
+#     rejected. This is defense-in-depth beyond the automatic mesh encryption.
+#
+# Modes (mtls.mode):
+#   UNSET      - inherit from parent; otherwise treated as PERMISSIVE.
+#   PERMISSIVE - accept both plaintext and mTLS (mesh-wide default).
+#   STRICT     - require an mTLS tunnel; reject plaintext / mesh-bypass traffic.
+#
+# Disabled by default: a namespace-wide STRICT policy rejects ALL non-mesh
+# plaintext, which can break legitimate callers that bypass ztunnel capture
+# (e.g. out-of-mesh metrics scrapers or probes hitting a pod IP directly).
+# Enable per namespace only once you have confirmed all ingress is mesh-captured.
+# For mixed cases, scope STRICT with a selector and relax specific ports via
+# portLevelMtls (portLevelMtls only applies when a selector is set; the port is
+# the workload port, not the Kubernetes Service port).
+peerAuthentication:
+  enabled: false
+  name: default
+  mode: STRICT
+  # selector:
+  #   matchLabels:
+  #     app: my-app
+  # portLevelMtls:
+  #   8080:
+  #     mode: PERMISSIVE
+
+# networkPolicies: ingress
+
+ingressPolicyCatalogue:
+
+  allow-same-namespace:
+    rules:
+      - from:
+          namespaces:
+            - "."

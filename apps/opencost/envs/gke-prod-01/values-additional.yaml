@@ -1,0 +1,71 @@
+# OpenCost configuration for devm-k01
+# Queries Mimir for Prometheus metrics
+# Uses Azure Workload Identity for authentication (no service principal secrets needed)
+
+# clusterName is used for DNS resolution (svc.<clusterName>), not cluster identifier
+# Keep as cluster.local - the cluster ID is set via opencost.exporter.defaultClusterId
+clusterName: "cluster.local"
+
+loglevel: info
+
+# ServiceAccount with workload identity for Azure API access
+serviceAccount:
+  annotations:
+    azure.workload.identity/client-id: "88ac6d86-2224-461a-8c3c-44f3b7adf353"
+
+# Pod label required for workload identity token injection
+podLabels:
+  azure.workload.identity/use: "true"
+
+opencost:
+  exporter:
+    defaultClusterId: "devm-k01"
+  resources:
+    requests:
+      cpu: 11m
+      memory: 50Mi
+    limits:
+      cpu: 11m
+      memory: 50Mi
+
+    # Azure configuration via environment variables for workload identity
+    # AZURE_SUBSCRIPTION_ID is required for Rate Card API pricing
+    # AZURE_CLIENT_ID and AZURE_TENANT_ID are injected by workload identity webhook
+    extraEnv:
+      AZURE_SUBSCRIPTION_ID: "3541944e-fe2e-48d6-9d8d-ee21066d0d19"
+
+  # Use Mimir as the Prometheus data source
+  prometheus:
+    internal:
+      enabled: true
+      serviceName: mimir-gateway
+      namespaceName: mimir
+      port: 80
+      # Mimir uses /prometheus path prefix
+      path: "/prometheus"
+      scheme: http
+
+  ui:
+    enabled: true
+    resources:
+      requests:
+        cpu: 10m
+        memory: 64Mi
+      limits:
+        memory: 64Mi
+
+  # Enable ServiceMonitor for Prometheus Operator
+  metrics:
+    serviceMonitor:
+      enabled: true
+      scrapeInterval: 5m
+      scrapeTimeout: 30s
+
+  nodeSelector:
+    karpenter.sh/capacity-type: on-demand
+
+# Pod security - using defaults as UI container requires write access to /var/www
+# The exporter container has its own security context defined in the chart
+podSecurityContext:
+  seccompProfile:
+    type: RuntimeDefault

@@ -1,0 +1,43 @@
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: generic-spot
+  annotations:
+    kubernetes.io/description: "General purpose NodePool for generic workloads"
+spec:
+  weight: 90
+  template:
+    spec:
+      requirements:
+        - key: kubernetes.io/os
+          operator: In
+          values: ["linux"]
+        - key: kubernetes.io/arch
+          operator: In
+          values: ["amd64"]
+        - key: kubernetes.azure.com/mode
+          operator: In
+          values: ["user"]
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values: ["spot"]
+        - key: karpenter.azure.com/sku-family
+          operator: In
+          values: ["D", "E", "A", "B"]
+        - key: karpenter.azure.com/sku-cpu
+          operator: Gt
+          values: ["2"]
+        - key: karpenter.azure.com/sku-memory
+          operator: Gt
+          values: ["4096"]
+      nodeClassRef:
+        group: karpenter.azure.com
+        kind: AKSNodeClass
+        name: default
+  limits:
+    cpu: "40"
+  disruption:
+    consolidationPolicy: WhenEmpty
+    consolidateAfter: 10m
+    budgets:
+      - nodes: "10%"

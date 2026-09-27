@@ -1,0 +1,59 @@
+# https://github.com/Azure/karpenter-provider-azure/blob/main/charts/karpenter/values.yaml
+
+tolerations:
+  - effect: NoSchedule
+    key: kubernetes.azure.com/scalesetpriority
+    operator: Equal
+    value: spot
+  - effect: NoSchedule
+    key: CriticalAddonsOnly
+    operator: Exists
+
+replicas: 1
+controller:
+  resources:
+    requests:
+      cpu: 35m
+      memory: 363Mi
+    limits:
+      cpu: 49m
+      memory: 425Mi
+  env:
+    - name: CLUSTER_NAME
+      value: aks-pin-aksshared-devm-int-uks
+    - name: CLUSTER_ENDPOINT
+      value: https://aks-pin-aksshared-devm-int-uks-d634iu8z.privatelink.uksouth.azmk8s.io
+    - name: NETWORK_DATAPLANE
+      value: ""   
+    - name: KUBELET_BOOTSTRAP_TOKEN
+      valueFrom:
+        secretKeyRef:
+          name: bootstrap-token
+          key: token
+    - name: SSH_PUBLIC_KEY
+      value: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQC6hq8QXRjEMuq7fkN9pQrLz7rt0gM3PuTJeu2TjIjtEkmczsPtQvpDlVykNOdFMDLWpwHTZBIWzLPfCHZLTahT3rs+7dgKeepSzgPOSiy4cf8srR70hKYQFIXiICLwF3c50sG39gUucftwP1fkrebQQLlMbmf0A2yUlmNtnO9JNZd8bbdvmIedOCHz7Z/qvguYRruYkLeJbSWIIZDMOWTyGOHqG1++h9QMZxbLfdrpYep+p64UjWjS6hVwrcLcp0r6NUso4VxKu0DYEVZcnCSAeTnbAZhRLEqVmyV5+ivW+baDnV1Z4erC3iycWPgPiG5Sn+cSgtNOlM+kPEP9HMfXMUFsmkoK2mhcq6he2RmtUFPEeq1SZ/YIHpTkrxnJeP3QgbzGZ3eB3AW3ul3eIeDxgf9OZURc3t7wrH3jJHKcbd7I34772ESWqTUTyezM5qIraBrcwwZZXJwG4VZYgqg8LO0wvUCt6LLmE84YSr17tR5bG6mJct6jyCJVyLepRDM="
+    - name: VNET_SUBNET_ID
+      value: /subscriptions/3541944e-fe2e-48d6-9d8d-ee21066d0d19/resourceGroups/rg-pin-net-devm-int-uks-001/providers/Microsoft.Network/virtualNetworks/pin-devm-int-uks-vnet-001/subnets/snet-pin-aks-devm-int-uks-001
+    - name: VNET_GUID
+      value: 9c53c5ac-f385-47ac-8ea0-cdc8f635f7a8
+
+    # Azure client settings
+    - name: ARM_SUBSCRIPTION_ID
+      value: 3541944e-fe2e-48d6-9d8d-ee21066d0d19
+    - name: LOCATION
+      value: uksouth
+    - name: AZURE_NODE_RESOURCE_GROUP
+      value: rg-pin-aksshared-devm-int-uks-001-nodes
+    - name: NODE_IDENTITIES
+      value: /subscriptions/3541944e-fe2e-48d6-9d8d-ee21066d0d19/resourceGroups/rg-pin-aksshared-devm-int-uks-001-nodes/providers/Microsoft.ManagedIdentity/userAssignedIdentities/aks-pin-aksshared-devm-int-uks-agentpool
+    - name: KUBELET_IDENTITY_CLIENT_ID
+      value: 4ab41737-502d-4b33-9a24-fd63e22b7c8d  # app id for: aks-pin-aksshared-devm-int-uks-agentpool 
+serviceAccount:
+  name: karpenter
+  annotations:
+    azure.workload.identity/client-id: cd3a30c0-3993-4f99-a06d-b7199caf94a4 # app id for: msi-pin-karpenter-devm-int-uks
+podLabels:
+  azure.workload.identity/use: "true"
+
+# This is required for the Azure DNS01 solver to work with private DNS zones.
+dns01RecursiveNameservers: 1.1.1.1:53,8.8.8.8:53

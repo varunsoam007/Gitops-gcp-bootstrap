@@ -1,0 +1,33 @@
+# Minimal values for CloudNativePG operator
+replicaCount: 1
+image:
+  pullPolicy: IfNotPresent
+  tag: "1.28.1"
+crds:
+  create: false
+config:
+  clusterWide: true
+nodeSelector:
+  karpenter.sh/capacity-type: on-demand
+
+resources:
+  requests:
+    cpu: 15m
+    memory: 121Mi
+  limits:
+    cpu: 15m
+    memory: 122Mi
+
+monitoring:
+  podMonitorEnabled: true
+  podMonitorInterval: "5m"
+  podMonitorScrapeTimeout: "30s"
+  podMonitorMetricRelabelings:
+    - action: drop
+      sourceLabels: ["__name__"]
+      regex: workqueue_(work|queue)_duration_seconds_bucket
+    - action: drop
+      sourceLabels: ["__name__"]
+      regex: controller_runtime_reconcile_time_seconds_bucket
+  grafanaDashboard:
+    create: true

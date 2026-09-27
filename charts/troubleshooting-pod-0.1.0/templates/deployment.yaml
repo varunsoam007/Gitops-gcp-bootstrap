@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.pod.name }}
+  namespace: {{ .Values.namespace.name }}
+  labels:
+    app.kubernetes.io/name: {{ .Values.pod.name }}
+    app.kubernetes.io/part-of: troubleshooting
+spec:
+  replicas: {{ .Values.pod.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ .Values.pod.name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ .Values.pod.name }}
+        app.kubernetes.io/part-of: troubleshooting
+    spec:
+      automountServiceAccountToken: {{ .Values.pod.automountServiceAccountToken }}
+      containers:
+        - name: {{ .Values.pod.name }}
+          image: {{ .Values.pod.image.repository }}:{{ .Values.pod.image.tag }}
+          imagePullPolicy: {{ .Values.pod.image.pullPolicy }}
+          command:
+            {{- toYaml .Values.pod.command | nindent 12 }}
+          stdin: true
+          tty: true
+          resources:
+            {{- toYaml .Values.pod.resources | nindent 12 }}
+          securityContext:
+            {{- toYaml .Values.pod.securityContext | nindent 12 }}

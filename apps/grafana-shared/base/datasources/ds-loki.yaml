@@ -1,0 +1,24 @@
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDatasource
+metadata:
+  name: loki
+spec:
+  allowCrossNamespaceImport: true
+  instanceSelector:
+    matchLabels:
+      dashboards: "grafana"
+  datasource:
+    name: Loki
+    type: loki
+    uid: loki
+    access: proxy
+    url: http://loki-gateway.loki.svc.cluster.local:80
+    isDefault: false
+    jsonData:
+      tlsSkipVerify: true
+      maxLines: 1000
+      # X-Scope-OrgID header - patched per environment with cluster-specific tenant ID
+      httpHeaderName1: X-Scope-OrgID
+    secureJsonData:
+      # Placeholder - must be patched by each environment's kustomization
+      httpHeaderValue1: MUST_BE_PATCHED

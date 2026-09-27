@@ -1,0 +1,19 @@
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod-k01.devm.corp.pinpetuk.net
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: david.mcneill@pinnaclepetuk.com
+    privateKeySecretRef:
+      name: letsencrypt-prod-k01.devm.corp.pinpetuk.net
+    solvers:
+    - dns01:
+        azureDNS:
+          hostedZoneName: k01.devm.corp.pinpetuk.net
+          resourceGroupName: rg-pin-aksshared-devm-int-uks-001
+          subscriptionID: 3541944e-fe2e-48d6-9d8d-ee21066d0d19 # ppg-sub-pin-devm-uks-int-001
+          environment: AzurePublicCloud
+          managedIdentity:
+            clientID: d9bdef3d-0df9-41aa-ab69-ab59f58d3b0c # msi-pin-certmanager-devm-int-uks

@@ -1,0 +1,34 @@
+# Shared values for the KEDA HTTP Add-on across all environments.
+#
+# Background:
+# - KEDA core is installed via the AKS managed add-on (runs in kube-system).
+# - This chart installs only the HTTP add-on components:
+#     * operator     — reconciles HTTPScaledObject -> ScaledObject + Service
+#     * scaler       — gRPC external scaler that KEDA core queries for metrics
+#     * interceptor  — HTTP data plane that proxies traffic and tracks pending requests
+# - The HTTP add-on does NOT register a metrics adapter; it integrates with the
+#   AKS-managed KEDA via standard external-scaler ScaledObjects, so the AKS
+#   "single external metrics adapter" constraint is not violated.
+
+# Install the HTTPScaledObject + InterceptorRoute CRDs from the chart.
+# Templates are gated on this flag (templates/crds/*.yaml).
+crds:
+  install: true
+
+# Watch HTTPScaledObjects in every namespace.
+operator:
+  watchNamespace: ""
+  # Enforce HTTPS + auth on the operator metrics endpoint (chart defaults, made explicit).
+  metrics:
+    secure: true
+    auth: true
+
+# Use structured logging across all three components to match the platform convention
+# (Alloy pipeline expects JSON).
+logging:
+  operator:
+    format: json
+  scaler:
+    format: json
+  interceptor:
+    format: json

@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: argo-cd
+  labels:
+    app.kubernetes.io/name: argo-cd
+    allow-shared-gateway-int-access: "true"
+    allow-shared-gateway-ext-access: 'true'
+#    istio.io/dataplane-mode: ambient 
+    allow-shared-waypoint-access: "true"
+    istio.io/use-waypoint: shared-waypoint
+    istio.io/use-waypoint-namespace: gateway-api

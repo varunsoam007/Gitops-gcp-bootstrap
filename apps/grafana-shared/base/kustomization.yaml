@@ -1,0 +1,25 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# SSA required for GrafanaFolder/Grafana CR status drift
+commonAnnotations:
+  argocd.argoproj.io/sync-options: ServerSideApply=true
+
+resources:
+  - namespace.yaml
+  - peerauthentication.yaml
+  # Database CR deployed to cnpg-shared namespace (must be same namespace as cluster)
+  - cnpg-database.yaml
+  - datasources
+  - dashboards
+  - pdb.yaml
+  # Grafana plugins - version tracking only, loaded via init container from ACR
+  - configmap-plugin-versions.yaml
+  # CronJob to trigger pod rollout when secrets change
+  # (Reloader cannot work with Grafana Operator - see AGENTS.md)
+  - cronjob-secret-sync.yaml
+  # Note: grafana-cr.yaml is not included here because per-environment files
+  # define the complete Grafana CR. The base grafana-cr.yaml only defines
+  # the plugin volume, which is already included in environment files.
+#  - grafana-cr.yaml
+#  - AuthorizationPolicy.yaml

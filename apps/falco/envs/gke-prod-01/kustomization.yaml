@@ -1,0 +1,17 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+helmGlobals:
+  chartHome: ../../../../charts
+
+namespace: falco
+
+helmCharts:
+  - name: falco-8.0.1 #folder name
+    version: 8.0.1
+    releaseName: falco
+    namespace: falco
+    valuesFile: values.yaml

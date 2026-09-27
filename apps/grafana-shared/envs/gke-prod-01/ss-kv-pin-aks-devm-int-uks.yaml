@@ -1,0 +1,30 @@
+apiVersion: external-secrets.io/v1
+kind: SecretStore
+metadata:
+  name: kv-pin-aks-devm-int-uks
+  annotations:
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+    argocd.argoproj.io/sync-wave: "-2"
+spec:
+  provider:
+    azurekv:
+      authType: WorkloadIdentity
+      vaultUrl: "https://kv-pin-aks-devm-int-uks.vault.azure.net/"
+      serviceAccountRef:
+        name: grafana-sa
+
+# ---
+# apiVersion: v1
+# kind: ServiceAccount
+# metadata:
+#   name: grafana-sa
+#   namespace: grafana-shared
+#   annotations:
+#     azure.workload.identity/client-id: placeholder
+#     kubernetes.io/enforce-mountable-secrets: "true"
+#     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+#     argocd.argoproj.io/sync-wave: "-2"
+
+# secrets:
+#   - name: grafana-shared-user-secret
+

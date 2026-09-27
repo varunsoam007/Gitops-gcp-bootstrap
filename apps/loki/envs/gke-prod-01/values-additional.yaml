@@ -1,0 +1,266 @@
+# Environment: devm-k01 - Development cluster
+# Only environment-specific overrides - shared config is in base/values-common.yaml
+#
+# Configuration:
+# - Lower replicas for cost savings (single replica for most components)
+# - Smaller resource requests/limits
+# - All components on on-demand nodes for stability
+# - Smaller storage sizes
+# - Gateway enabled, Canary enabled
+# - Memcached disabled - using Dragonfly for caching (see apps/dragonfly)
+# - Ruler enabled with Mimir Alertmanager integration
+# - 14 day log retention (reduced for lower environments)
+#
+# Note: maxUnavailable only set on components with replicas > 1
+
+# Private ACR for devm cluster
+loki:
+  image:
+    registry: crpinthirdpartymgtintuks001.azurecr.io
+    repository: grafana/loki
+    tag: "3.6.5"
+
+  # Override retention for dev environment (14 days)
+  limits_config:
+    retention_period: 336h
+
+  # Configure ruler to use local storage for rules (from ruler.directories)
+  rulerConfig:
+    storage:
+      type: local
+      local:
+        directory: /etc/loki/rules
+    alertmanager_url: http://mimir-alertmanager.mimir.svc.cluster.local:8080/alertmanager
+    # Use v2 API - Mimir Alertmanager dropped v1 API support (v2 is default in Loki 3.6+)
+    enable_alertmanager_v2: true
+    external_labels:
+      cluster: devm-k01
+
+# Component configurations - scaled down for dev
+distributor:
+  replicas: 1
+  nodeSelector:
+    karpenter.sh/capacity-type: on-demand
+  resources:
+    requests:
+      cpu: 78m
+      memory: 121Mi
+    limits:
+      cpu: 144m
+      memory: 224Mi
+
+ingester:
+  replicas: 2
+  maxUnavailable: 1
+  # Prefer spot nodes for cost savings, fallback to on-demand
+  affinity:
+    nodeAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          preference:
+            matchExpressions:
+              - key: karpenter.sh/capacity-type
+                operator: In
+                values:
+                  - spot
+  persistence:
+    enabled: true
+    storageClass: managed
+    size: 30Gi
+  resources:
+    requests:
+      cpu: 63m
+      memory: 561Mi
+    limits:
+      cpu: 116m
+      memory: 1037Mi
+
+querier:
+  replicas: 1
+  nodeSelector:
+    karpenter.sh/capacity-type: on-demand
+  resources:
+    requests:
+      cpu: 63m
+      memory: 156Mi
+    limits:
+      cpu: 264m
+      memory: 288Mi
+
+queryFrontend:
+  replicas: 1
+  nodeSelector:
+    karpenter.sh/capacity-type: on-demand
+  resources:
+    requests:
+      cpu: 23m
+      memory: 194Mi
+    limits:
+      cpu: 42m
+      memory: 359Mi
+
+queryScheduler:
+  replicas: 1
+  nodeSelector:
+    karpenter.sh/capacity-type: on-demand
+  resources:
+    requests:
+      cpu: 15m
+      memory: 100Mi
+    limits:
+      cpu: 20m
+      memory: 112Mi
+
+compactor:
+  replicas: 1
+  nodeSelector:
+    karpenter.sh/capacity-type: on-demand
+  resources:
+    requests:
+      cpu: 15m
+      memory: 335Mi
+    limits:
+      cpu: 20m
+      memory: 620Mi
+
+indexGateway:
+  replicas: 1
+  nodeSelector:
+    karpenter.sh/capacity-type: on-demand
+  persistence:
+    enabled: true
+    storageClass: managed
+    size: 20Gi
+  resources:
+    requests:
+      cpu: 15m
+      memory: 105Mi
+    limits:
+      cpu: 20m
+      memory: 194Mi
+
+ruler:
+  enabled: true
+  replicas: 1
+  nodeSelector:
+    karpenter.sh/capacity-type: on-demand
+  resources:
+    requests:
+      cpu: 23m
+      memory: 215Mi
+    limits:
+      cpu: 42m
+      memory: 397Mi
+  # LogQL alert rules for platform namespaces
+  # Using 'devm-k01' tenant to match Alloy log shipper tenant_id
+  directories:
+    devm-k01:
+      platform-alerts.yaml: |
+        groups:
+          - name: platform-critical-logs
+            rules:
+              # Any fatal/panic log = immediate critical alert
+              # Excludes prometheus-msteams to prevent self-alerting
+              # Excludes trivy scan job reports (transient connection failures to trivy-server)
+              - alert: CriticalLogDetected
+                expr: |
+                  sum by (namespace, pod, container) (
+                    count_over_time(
+                      {namespace=~"istio-system|platform-auth|istio-cni|loki|mimir|argo-cd|karpenter|kiali-server|monitoring|alloy|grafana-shared|cnpg-system|cnpg-shared|external-dns|external-secrets|falco|trivy-operator|cert-manager|kargo|opencost|grafana-operator|reloader|reflector",container!="prometheus-msteams"}
+                      |~ "(?i)(fatal|panic)"
+                      !~ "reconciler.scan job" [5m]
+                    )
+                  ) > 0
+                for: 5m
+                labels:
+                  severity: critical
+                annotations:
+                  summary: "Critical log (fatal/panic) detected"
+                  description: "Pod {{ $labels.pod }} in namespace {{ $labels.namespace }} has fatal/panic logs."
+
+          - name: platform-error-logs
+            rules:
+              # Error logs sustained at >5/min for 15m, grouped per workload (namespace + container)
+              # Grouped by container (not pod) so re-deploys don't spawn new alert fingerprints
+              # Excludes Loki canary self-monitoring tail timeout errors (benign, fires hourly)
+              - alert: RepeatedErrorLogs
+                expr: |
+                  sum by (namespace, container) (
+                    count_over_time(
+                      {namespace=~"istio-system|istio-cni|platform-auth|argo-cd|karpenter|kiali-server|monitoring|grafana-shared|cnpg-system|cnpg-shared|external-dns|falco|trivy-operator|cert-manager|kargo|opencost|grafana-operator|reloader|reflector",container!="prometheus-msteams"}
+                      |~ "(?i)\\\"level\\\":\\s*\\\"error\\\"|level=error|\\[ERROR\\]|\\[error\\]"
+                      !~ "reached tail max duration limit|grpc tail client" [1m]
+                    )
+                  ) > 5
+                for: 15m
+                labels:
+                  severity: warning
+                  priority: normal
+                annotations:
+                  summary: "Repeated error logs detected"
+                  description: "Workload {{ $labels.container }} in namespace {{ $labels.namespace }} is logging more than 5 errors/min (sustained 15m)."
+
+              # Same detection for noisy platform namespaces, routed at lower priority
+              - alert: RepeatedErrorLogsLowPriority
+                expr: |
+                  sum by (namespace, container) (
+                    count_over_time(
+                      {namespace=~"alloy|external-secrets|loki|mimir",container!="prometheus-msteams"}
+                      |~ "(?i)\\\"level\\\":\\s*\\\"error\\\"|level=error|\\[ERROR\\]|\\[error\\]"
+                      !~ "reached tail max duration limit|grpc tail client" [1m]
+                    )
+                  ) > 5
+                for: 15m
+                labels:
+                  severity: info
+                  priority: low
+                annotations:
+                  summary: "Repeated error logs detected (low priority)"
+                  description: "Workload {{ $labels.container }} in namespace {{ $labels.namespace }} is logging more than 5 errors/min (sustained 15m)."
+
+# Gateway enabled for dev environment
+gateway:
+  enabled: true
+  replicas: 1
+  image:
+    registry: crpinthirdpartymgtintuks001.azurecr.io
+    repository: nginxinc/nginx-unprivileged
+  nodeSelector:
+    karpenter.sh/capacity-type: on-demand
+  resources:
+    requests:
+      cpu: 15m
+      memory: 100Mi
+    limits:
+      cpu: 20m
+      memory: 100Mi
+
+# Canary enabled with private ACR
+lokiCanary:
+  enabled: true
+  image:
+    registry: crpinthirdpartymgtintuks001.azurecr.io
+    repository: grafana/loki-canary
+  resources:
+    requests:
+      cpu: 15m
+      memory: 100Mi
+    limits:
+      cpu: 20m
+      memory: 100Mi
+  # Use gateway since it's enabled (host:port only, no http:// prefix)
+  lokiurl: loki-gateway.loki.svc.cluster.local:80
+
+# Memcached disabled - using Dragonfly for caching
+# Dragonfly is deployed in dragonfly namespace and configured via loki.structuredConfig in base/values-common.yaml
+memcached:
+  enabled: false
+
+memcachedExporter:
+  enabled: false
+
+chunksCache:
+  enabled: false
+
+resultsCache:
+  enabled: false

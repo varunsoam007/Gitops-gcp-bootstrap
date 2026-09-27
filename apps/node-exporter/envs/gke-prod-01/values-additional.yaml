@@ -1,0 +1,39 @@
+# node-exporter configuration for devm-k01
+# DaemonSet that runs on all nodes to collect host metrics
+
+# Shorten resource names
+fullnameOverride: node-exporter
+
+# Private ACR for images
+image:
+  registry: crpinthirdpartymgtintuks001.azurecr.io
+  repository: prometheus/node-exporter
+
+# Enable ServiceMonitor for Alloy discovery
+prometheus:
+  monitor:
+    enabled: true
+    namespace: node-exporter
+    interval: 30s
+    scrapeTimeout: 10s
+
+# Resource limits for dev environment - req==lim (VPA upper: ~128Mi)
+resources:
+  requests:
+    cpu: 15m
+    memory: 100Mi
+  limits:
+    cpu: 15m
+    memory: 100Mi
+
+# Override default affinity (chart includes EKS/Azure virtual-kubelet exclusions that conflict with AKS)
+# We need to provide a nodeAffinity that merges over the problematic defaults
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/os
+              operator: In
+              values:
+                - linux

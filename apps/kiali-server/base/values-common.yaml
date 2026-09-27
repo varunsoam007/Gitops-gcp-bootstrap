@@ -1,0 +1,44 @@
+# Shared Kiali configuration for all environments
+istio_namespace: "istio-system"
+
+# OAuth2-proxy handles authentication at the gateway level
+auth:
+  strategy: "anonymous"
+
+external_services:
+  prometheus:
+    url: "http://mimir-gateway.mimir.svc.cluster.local:80/prometheus"
+  istio:
+    root_namespace: "istio-system"
+
+# Suppress specific static validation checks (lists replace, so keep chart defaults).
+# KIA1301: retained from chart default.
+# KIA1402: false positive for HTTPRoute backendRefs that target the KEDA HTTP
+#   add-on interceptor Service in the "keda" namespace. Istio resolves these
+#   cross-namespace refs correctly (ResolvedRefs=True) via a ReferenceGrant, but
+#   Kiali's static checker flags the cross-namespace Service as not found.
+kiali_feature_flags:
+  validations:
+    ignore: ["KIA1301", "KIA1402"]
+
+deployment:
+  image_name: crpinthirdpartymgtintuks001.azurecr.io/kiali/kiali
+  resources:
+    requests:
+      cpu: 1m
+      memory: 64Mi
+    limits:
+      memory: 128Mi
+  accessible_namespaces: ["**"]
+  namespace: "istio-system"
+  ingress:
+   enabled: false
+  tolerations:
+    - effect: NoSchedule
+      key: kubernetes.azure.com/scalesetpriority
+      operator: Equal
+      value: spot
+
+namespace: istio-system
+global:
+ namespace: istio-system

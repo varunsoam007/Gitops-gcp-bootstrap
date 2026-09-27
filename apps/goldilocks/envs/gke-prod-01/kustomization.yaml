@@ -1,0 +1,34 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+  - ../../../../charts/goldilocks-10.3.0/charts/vpa/crds
+
+helmGlobals:
+  chartHome: ../../../../charts
+
+helmCharts:
+  - name: goldilocks-10.3.0
+    releaseName: goldilocks
+    namespace: goldilocks
+    additionalValuesFiles:
+      - values-additional.yaml
+
+# Explicitly set Gateway API defaults so the live state matches desired state in ArgoCD
+patches:
+  - target:
+      group: gateway.networking.k8s.io
+      version: v1
+      kind: HTTPRoute
+      name: goldilocks-dashboard
+    patch: |-
+      - op: add
+        path: /spec/rules/0/backendRefs/0/group
+        value: ""
+      - op: add
+        path: /spec/rules/0/backendRefs/0/kind
+        value: Service
+      - op: add
+        path: /spec/rules/0/backendRefs/0/weight
+        value: 1

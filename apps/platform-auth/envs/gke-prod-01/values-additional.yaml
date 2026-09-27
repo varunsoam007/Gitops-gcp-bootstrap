@@ -1,0 +1,127 @@
+# oauth2-proxy - devm-k01 values-additional
+
+fullnameOverride: platform-auth
+
+# Private ACR - mirrors upstream oauth2-proxy image
+image:
+  registry: crpinthirdpartymgtintuks001.azurecr.io
+  repository: oauth2-proxy/oauth2-proxy
+  tag: "v7.15.1"
+
+kind: Deployment
+replicas: 1
+
+nodeSelector:
+  karpenter.sh/capacity-type: on-demand
+
+podSecurityContext:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  runAsUser: 1000
+  runAsGroup: 1000
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: ["ALL"]
+
+resources:
+  requests:
+    cpu: 15m
+    memory: 100Mi
+  limits:
+    cpu: 15m
+    memory: 100Mi
+
+service:
+  type: ClusterIP
+  portNumber: 4180
+
+serviceAccount:
+  enabled: true
+  name: oauth2-proxy
+  automountServiceAccountToken: true
+  annotations:
+    azure.workload.identity/client-id: "516e9c0b-45b3-4d94-87cf-c3346e14b8df"
+
+config:
+  existingSecret: oauth2-proxy-credentials
+
+  configFile: |-
+    email_domains = [ "*" ]
+    upstreams = [ "static://200" ]
+    cookie_secure = true
+    cookie_samesite = "none"
+    cookie_name = "_oauth2_proxy"
+    cookie_expire = "168h"
+    cookie_refresh = "1h"
+    cookie_httponly = true
+    cookie_domains = [ ".k01.devm.corp.pinpetuk.net" ]
+    set_xauthrequest = true
+    pass_authorization_header = true
+    pass_access_token = true
+    session_store_type = "redis"
+    redis_connection_url = "redis://dragonfly.dragonfly.svc.cluster.local:6379/2"
+    pass_basic_auth = false
+    pass_user_headers = true
+    skip_provider_button = true
+    skip_jwt_bearer_tokens = true
+    reverse_proxy = true
+    code_challenge_method = "S256"
+    silence_ping_logging = true
+    whitelist_domains = [ ".k01.devm.corp.pinpetuk.net" ]
+    oidc_issuer_url = "https://login.microsoftonline.com/a47336de-50a0-418e-a3a6-0d36f185f6d4/v2.0"
+    provider = "entra-id"
+    client_id = "{{ `{{ .Env.CLIENT_ID }}` }}"
+    client_secret = "{{ `{{ .Env.CLIENT_SECRET }}` }}"
+    cookie_secret = "{{ `{{ .Env.COOKIE_SECRET }}` }}"
+    scope = "openid profile"
+    user_id_claim = "preferred_username"
+    oidc_email_claim = "preferred_username"
+    oidc_groups_claim = "roles"
+    oidc_jwks_url = "https://login.microsoftonline.com/a47336de-50a0-418e-a3a6-0d36f185f6d4/discovery/v2.0/keys"
+
+
+## Horizontal Pod Autoscaling
+## ref: https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  # targetMemoryUtilizationPercentage: 80
+  annotations: {}
+  # Configure HPA behavior policies for scaling if needed
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 80
+        periodSeconds: 60
+      selectPolicy: Max
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 30
+      - type: Pods
+        value: 4
+        periodSeconds: 30
+      selectPolicy: Max
+
+## Metrics and ServiceMonitor for Prometheus
+metrics:
+  enabled: true
+  port: 44180
+  service:
+    appProtocol: http
+  serviceMonitor:
+    enabled: true
+    interval: 1m
+    scrapeTimeout: 30s
+    labels: {}

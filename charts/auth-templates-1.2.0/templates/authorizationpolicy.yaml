@@ -1,0 +1,124 @@
+{{- $defaults := .Values.auth_defaults | default dict }}
+{{- if .Values.auth }}
+{{- if .Values.auth.enabled }}
+{{- $hostname := required "auth.hostname is required when auth.enabled is true" .Values.auth.hostname }}
+{{- $gateway := default $defaults.gateway .Values.auth.gateway }}
+{{- $gatewayNamespace := default $defaults.gatewayNamespace .Values.auth.gatewayNamespace }}
+{{- $excludePaths := default $defaults.excludePaths .Values.auth.excludePaths }}
+{{- $requiredRoles := .Values.auth.requiredRoles | default list }}
+{{- $mode := default (default "interactive" $defaults.mode) .Values.auth.mode }}
+{{/* Interactive mode — oauth2-proxy ext_authz */}}
+{{- if eq $mode "interactive" }}
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: {{ .Release.Name }}-oauth2
+  namespace: {{ $gatewayNamespace }}
+  labels:
+    {{- include "auth-templates.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-options: ServerSideApply=true
+spec:
+  action: CUSTOM
+  provider:
+    name: oauth2-proxy-ext-authz
+  targetRefs:
+    - kind: Gateway
+      group: gateway.networking.k8s.io
+      name: {{ $gateway }}
+  rules:
+    - to:
+        - operation:
+            hosts:
+              - {{ $hostname | quote }}
+            notPaths:
+              - "/oauth2/*"
+              - "/up"
+              - "/metrics"
+              {{- range $excludePaths }}
+              - {{ . | quote }}
+              {{- end }}
+{{/*
+  Role enforcement for interactive mode is handled by the RBAC EnvoyFilter in
+  envoyfilter-required-roles.yaml, not by an AuthorizationPolicy. oauth2-proxy
+  injects the comma-joined `x-auth-request-groups` header after Istio's native
+  RBAC runs, and Istio's string matcher cannot match a required role that sits
+  in the middle of that header (no "contains"/regex support), so users whose
+  role is neither first nor last were wrongly denied. See that template.
+*/}}
+{{- end }}
+{{/* M2M mode — native Istio JWT validation */}}
+{{- if eq $mode "m2m" }}
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: {{ .Release.Name }}-jwt-required
+  namespace: {{ $gatewayNamespace }}
+  labels:
+    {{- include "auth-templates.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-options: ServerSideApply=true
+spec:
+  targetRefs:
+    - kind: Gateway
+      group: gateway.networking.k8s.io
+      name: {{ $gateway }}
+  action: DENY
+  rules:
+    - from:
+        - source:
+            notRequestPrincipals: ["*"]
+      to:
+        - operation:
+            hosts:
+              - {{ $hostname | quote }}
+            notPaths:
+              - "/up"
+              - "/metrics"
+              {{- range $excludePaths }}
+              - {{ . | quote }}
+              {{- end }}
+{{- if $requiredRoles }}
+{{/* Deny JWTs missing required roles */}}
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: {{ .Release.Name }}-deny-roles
+  namespace: {{ $gatewayNamespace }}
+  labels:
+    {{- include "auth-templates.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-options: ServerSideApply=true
+spec:
+  targetRefs:
+    - kind: Gateway
+      group: gateway.networking.k8s.io
+      name: {{ $gateway }}
+  action: DENY
+  rules:
+    - from:
+        - source:
+            requestPrincipals: ["*"]
+      to:
+        - operation:
+            hosts:
+              - {{ $hostname | quote }}
+            notPaths:
+              - "/up"
+              - "/metrics"
+              {{- range $excludePaths }}
+              - {{ . | quote }}
+              {{- end }}
+      when:
+        - key: request.auth.claims[roles]
+          notValues:
+            {{- range $requiredRoles }}
+            - {{ . | quote }}
+            {{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

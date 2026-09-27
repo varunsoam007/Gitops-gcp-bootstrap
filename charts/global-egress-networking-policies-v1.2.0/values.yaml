@@ -1,0 +1,121 @@
+
+# Default deny-all egress policy
+# Creates an AuthorizationPolicy that denies all traffic by default
+# Configure action to AUDIT for testing before enforcing with DENY
+defaultDenyAll:
+  enabled: true
+  name: default-deny-all-egress
+  action: AUDIT  # Change to DENY to enforce blocking
+  # When true, deny/audit only traffic sourced from this release namespace.
+  # Keep this enabled when sharing a waypoint namespace across apps.
+  restrictToReleaseNamespace: true
+
+waypoint:
+  name: waypoint
+  # namespace: gateway-api
+
+# Rewrite default Istio/Envoy deny payloads to a consistent JSON body.
+authzDenyRewrite:
+  enabled: true
+  # Optional explicit resource name. Leave empty to auto-name from Helm release.
+  name: ""
+  targetPorts:
+    - 15008
+  match:
+    extAuthzDenied: "ext_authz_denied"
+    rbacPrefix: "rbac_access_denied_matched_policy"
+  response:
+    contentType: "application/json"
+    error: "unauthorised"
+    message: "You are not permitted to access this resource"
+
+l7PolicyDefaults:
+  # Restrict generated L7 ALLOW policies to traffic from this release namespace
+  # unless overridden per catalogue entry.
+  restrictToReleaseNamespace: true
+
+egressCatalogue:
+
+  google-apis:
+    hosts:
+      - bigquery.googleapis.com
+      - storage.googleapis.com
+      - www.googleapis.com
+      - oauth2.googleapis.com
+
+    port: 443
+    portName: https
+    protocol: HTTPS
+
+    policies:
+      l7:
+        enabled: true
+      l4:
+        enabled: false
+
+  azure-mgmt:
+    hosts:
+      - management.azure.com
+
+    port: 443
+    portName: https
+    protocol: HTTPS
+
+    policies:
+      l7:
+        enabled: true
+
+  vip-proxy:
+    hosts:
+      - vip-proxy.uk.pinpetgroup.com
+
+    port: 8080
+    portName: http
+    protocol: HTTP
+
+    policies:
+      l7:
+        enabled: true
+
+  azure-monitor:
+    hosts:
+      - "*.sql.yyy.com"
+
+    port: 1433
+    portName: sql
+    protocol: TCP
+
+    policies:
+      l4:
+        enabled: true
+
+  central-egress-api:
+    hosts:
+      - api.vendor.com
+
+    port: 443
+    portName: https
+    protocol: HTTPS
+
+    policies:
+      l7:
+        enabled: true
+
+    tlsOrigination: true
+    tlsOriginationMode: SIMPLE
+
+  # ============================================================================
+  # INTERNAL (MESH_INTERNAL)
+  # ============================================================================
+  internal-example-api:
+    location: MESH_INTERNAL
+    hosts:
+      - "my-internal-api.other-namespace.svc.cluster.local"
+
+    port: 80
+    portName: http
+    protocol: HTTP
+
+    policies:
+      l7:
+        enabled: true

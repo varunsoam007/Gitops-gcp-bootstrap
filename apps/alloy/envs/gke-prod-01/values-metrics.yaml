@@ -1,0 +1,740 @@
+# Grafana Alloy configuration for devm-k01 - METRICS SCRAPING AND REMOTE WRITE INGEST
+# Centralized Deployment that handles Prometheus metrics scraping and remote write ingest
+# Log collection is handled by a separate DaemonSet (alloy-logs)
+
+# Deploy as Deployment (centralized) for metrics scraping
+controller:
+  type: deployment
+  replicas: 3
+  # High priority for observability
+  priorityClassName: observability-critical
+  # Run metrics collectors on on-demand nodes for cluster stability.
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: karpenter.sh/capacity-type
+                operator: In
+                values:
+                  - on-demand
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchLabels:
+              app.kubernetes.io/instance: alloy-metrics
+          topologyKey: kubernetes.io/hostname
+  topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: kubernetes.io/hostname
+      whenUnsatisfiable: ScheduleAnyway
+      labelSelector:
+        matchLabels:
+          app.kubernetes.io/instance: alloy-metrics
+  # Pod annotations - exclude API server from Istio redirection
+  podAnnotations:
+    # Exclude Kubernetes API server (10.0.0.1) from Istio ambient traffic redirection
+    # This allows alloy to access the API server directly for ServiceMonitor/PodMonitor discovery
+    traffic.sidecar.istio.io/excludeOutboundIPRanges: "10.0.0.1/32"
+
+# Internal routes for Alloy UI and Prometheus remote write ingestion via the shared internal gateway.
+extraObjects:
+  - apiVersion: gateway.networking.k8s.io/v1
+    kind: HTTPRoute
+    metadata:
+      name: alloy-metrics
+      namespace: alloy
+      annotations:
+        argocd.argoproj.io/sync-options: ServerSideApply=true
+    spec:
+      parentRefs:
+        - name: shared-gateway-int
+          namespace: gateway-api
+          group: gateway.networking.k8s.io
+          kind: Gateway
+      hostnames:
+        - alloy.k01.devm.corp.pinpetuk.net
+      rules:
+        - matches:
+            - path:
+                type: PathPrefix
+                value: /
+          backendRefs:
+            - group: ""
+              kind: Service
+              name: alloy-metrics
+              port: 12345
+              weight: 1
+  - apiVersion: gateway.networking.k8s.io/v1
+    kind: HTTPRoute
+    metadata:
+      name: alloy-metrics-remote-write
+      namespace: alloy
+      annotations:
+        argocd.argoproj.io/sync-options: ServerSideApply=true
+    spec:
+      parentRefs:
+        - name: shared-gateway-int
+          namespace: gateway-api
+          group: gateway.networking.k8s.io
+          kind: Gateway
+      hostnames:
+        - alloy-metrics.k01.devm.corp.pinpetuk.net
+      rules:
+        - matches:
+            - path:
+                type: PathPrefix
+                value: /api/v1/metrics/write
+          backendRefs:
+            - group: ""
+              kind: Service
+              name: alloy-metrics
+              port: 9090
+              weight: 1
+
+# Resource limits - higher for centralized metrics processing
+# Config reloader sidecar resources (VPA upper: 50Mi)
+configReloader:
+  resources:
+    requests:
+      cpu: 11m
+      memory: 50Mi
+    limits:
+      cpu: 11m
+      memory: 50Mi
+
+alloy:
+  # Persistent storage path for WAL
+  storagePath: /var/lib/alloy-metrics
+
+  extraPorts:
+    - name: rw-http
+      port: 9090
+      targetPort: 9090
+      protocol: TCP
+
+  resources:
+    requests:
+      cpu: 78m
+      memory: 2276Mi
+    limits:
+      cpu: 78m
+      memory: 2500Mi
+
+  # Clustering for HA - replicas will coordinate scraping
+  clustering:
+    enabled: true
+
+  # Alloy River configuration - METRICS ONLY
+  configMap:
+    create: true
+    content: |
+      // Logging configuration
+      logging {
+        level  = "info"
+        format = "logfmt"
+      }
+
+      // ===========================================
+      // Kubernetes Discovery
+      // ===========================================
+
+      discovery.kubernetes "pods" {
+        role = "pod"
+      }
+
+      discovery.kubernetes "nodes" {
+        role = "node"
+      }
+
+      discovery.kubernetes "services" {
+        role = "service"
+      }
+
+      discovery.kubernetes "endpoints" {
+        role = "endpoints"
+      }
+
+      // ===========================================
+      // Prometheus Operator CRD Discovery
+      // ServiceMonitors and PodMonitors
+      // ===========================================
+
+      // Accept Prometheus remote write traffic from trusted internal callers
+      // and forward it to the same Mimir backend as scraped metrics.
+      prometheus.receive_http "remote_write" {
+        http {
+          listen_address = "0.0.0.0"
+          listen_port    = 9090
+        }
+
+        forward_to = [prometheus.remote_write.mimir.receiver]
+      }
+
+      // Discover and scrape targets from PodMonitor CRDs
+      prometheus.operator.podmonitors "pods" {
+        forward_to = [prometheus.remote_write.mimir.receiver]
+
+        scrape {
+          default_scrape_interval = "30s"
+          default_scrape_timeout  = "10s"
+        }
+
+        // Distribute scraping across Alloy Deployment pods
+        clustering {
+          enabled = true
+        }
+      }
+
+      // Discover and scrape targets from ServiceMonitor CRDs
+      prometheus.operator.servicemonitors "services" {
+        forward_to = [prometheus.remote_write.mimir.receiver]
+
+        scrape {
+          default_scrape_interval = "30s"
+          default_scrape_timeout  = "10s"
+        }
+
+        // Distribute scraping across Alloy Deployment pods
+        clustering {
+          enabled = true
+        }
+      }
+
+      // ===========================================
+      // Pod Metrics Discovery (annotation-based)
+      // ===========================================
+
+      // Relabel pods to only scrape metrics endpoints
+      discovery.relabel "pods_metrics" {
+        targets = discovery.kubernetes.pods.targets
+
+        // Only keep pods with prometheus.io/scrape=true annotation
+        rule {
+          source_labels = ["__meta_kubernetes_pod_annotation_prometheus_io_scrape"]
+          action        = "keep"
+          regex         = "true"
+        }
+
+        // Drop pods in kube-system (usually have their own monitoring)
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          regex         = "kube-system"
+          action        = "drop"
+        }
+
+        // Use custom port if specified in annotation
+        rule {
+          source_labels = ["__meta_kubernetes_pod_annotation_prometheus_io_port", "__meta_kubernetes_pod_ip"]
+          regex         = "(\\d+);(.+)"
+          replacement   = "$2:$1"
+          target_label  = "__address__"
+        }
+
+        // Use custom path if specified in annotation
+        rule {
+          source_labels = ["__meta_kubernetes_pod_annotation_prometheus_io_path"]
+          regex         = "([^:]+)(:\\d+)?"
+          target_label  = "__metrics_path__"
+        }
+
+        // Use custom scheme if specified in annotation
+        rule {
+          source_labels = ["__meta_kubernetes_pod_annotation_prometheus_io_scheme"]
+          regex         = "(https?)"
+          target_label  = "__scheme__"
+        }
+
+        // Add namespace label
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label  = "namespace"
+        }
+
+        // Add pod label
+        rule {
+          source_labels = ["__meta_kubernetes_pod_name"]
+          target_label  = "pod"
+        }
+
+        // Add node label
+        rule {
+          source_labels = ["__meta_kubernetes_pod_node_name"]
+          target_label  = "node"
+        }
+
+        // Add container label
+        rule {
+          source_labels = ["__meta_kubernetes_pod_container_name"]
+          target_label  = "container"
+        }
+
+        // Add app label from standard k8s labels
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_name"]
+          target_label  = "app"
+        }
+
+        // Fallback app label
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_app"]
+          regex         = "([^:]+)(:\\d+)?"
+          target_label  = "app"
+        }
+
+        // Add component label
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_component"]
+          target_label  = "component"
+        }
+      }
+
+      // ===========================================
+      // Service Metrics Discovery (annotation-based)
+      // ===========================================
+
+      discovery.relabel "services_metrics" {
+        targets = discovery.kubernetes.services.targets
+
+        // Only keep services with prometheus.io/scrape=true annotation
+        rule {
+          source_labels = ["__meta_kubernetes_service_annotation_prometheus_io_scrape"]
+          action        = "keep"
+          regex         = "true"
+        }
+
+        // Use custom port if specified in annotation
+        rule {
+          source_labels = ["__meta_kubernetes_service_annotation_prometheus_io_port", "__address__"]
+          regex         = "(\\d+);(.+):\\d+"
+          replacement   = "$2:$1"
+          target_label  = "__address__"
+        }
+
+        // Use custom path if specified in annotation
+        rule {
+          source_labels = ["__meta_kubernetes_service_annotation_prometheus_io_path"]
+          regex         = "([^:]+)(:\\d+)?"
+          target_label  = "__metrics_path__"
+        }
+
+        // Add namespace label
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label  = "namespace"
+        }
+
+        // Add service label
+        rule {
+          source_labels = ["__meta_kubernetes_service_name"]
+          target_label  = "service"
+        }
+      }
+
+      // ===========================================
+      // Istio Control Plane Metrics (istiod)
+      // ===========================================
+
+      discovery.relabel "istiod" {
+        targets = discovery.kubernetes.endpoints.targets
+
+        // Keep only istiod endpoints with http-monitoring port
+        rule {
+          source_labels = ["__meta_kubernetes_namespace", "__meta_kubernetes_service_name", "__meta_kubernetes_endpoint_port_name"]
+          action        = "keep"
+          regex         = "istio-system;istiod;http-monitoring"
+        }
+
+        // Add namespace label
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label  = "namespace"
+        }
+
+        // Add service label
+        rule {
+          source_labels = ["__meta_kubernetes_service_name"]
+          target_label  = "service"
+        }
+
+        // Add pod label
+        rule {
+          source_labels = ["__meta_kubernetes_pod_name"]
+          target_label  = "pod"
+        }
+
+        // Add job label
+        rule {
+          replacement  = "istiod"
+          target_label = "job"
+        }
+      }
+
+      // ===========================================
+      // Istio Ambient Mode - Ztunnel Metrics
+      // Ztunnel provides L4 metrics in ambient mode
+      // ===========================================
+
+      discovery.relabel "ztunnel" {
+        targets = discovery.kubernetes.pods.targets
+
+        // Keep only ztunnel pods
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_app"]
+          action        = "keep"
+          regex         = "ztunnel"
+        }
+
+        // Use the metrics port (15020)
+        rule {
+          source_labels = ["__meta_kubernetes_pod_ip"]
+          replacement   = "$1:15020"
+          target_label  = "__address__"
+        }
+
+        // Set metrics path
+        rule {
+          replacement  = "/stats/prometheus"
+          target_label = "__metrics_path__"
+        }
+
+        // Add namespace label
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label  = "namespace"
+        }
+
+        // Add pod label
+        rule {
+          source_labels = ["__meta_kubernetes_pod_name"]
+          target_label  = "pod"
+        }
+
+        // Add node label
+        rule {
+          source_labels = ["__meta_kubernetes_pod_node_name"]
+          target_label  = "node"
+        }
+
+        // Add job label
+        rule {
+          replacement  = "ztunnel"
+          target_label = "job"
+        }
+      }
+
+      // ===========================================
+      // Istio Ambient Mode - Waypoint Proxy Metrics
+      // Waypoint provides L7 metrics in ambient mode
+      // ===========================================
+
+      discovery.relabel "waypoint" {
+        targets = discovery.kubernetes.pods.targets
+
+        // Keep only waypoint pods (gateway with waypoint label)
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_gateway_istio_io_managed"]
+          action        = "keep"
+          regex         = "istio.io-mesh-controller"
+        }
+
+        // Use the metrics port (15020)
+        rule {
+          source_labels = ["__meta_kubernetes_pod_ip"]
+          replacement   = "$1:15020"
+          target_label  = "__address__"
+        }
+
+        // Set metrics path
+        rule {
+          replacement  = "/stats/prometheus"
+          target_label = "__metrics_path__"
+        }
+
+        // Add namespace label
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label  = "namespace"
+        }
+
+        // Add pod label
+        rule {
+          source_labels = ["__meta_kubernetes_pod_name"]
+          target_label  = "pod"
+        }
+
+        // Add node label
+        rule {
+          source_labels = ["__meta_kubernetes_pod_node_name"]
+          target_label  = "node"
+        }
+
+        // Add job label
+        rule {
+          replacement  = "waypoint"
+          target_label = "job"
+        }
+      }
+
+      // ===========================================
+      // Prometheus Scraping - All 60s intervals
+      // ===========================================
+      // NOTE: kubelet, cadvisor, kube-state-metrics, and node-exporter
+      // are scraped via ServiceMonitors from their respective apps.
+      // Do NOT add duplicate scrape configs for these targets.
+
+      prometheus.scrape "kubernetes_pods" {
+        targets    = discovery.relabel.pods_metrics.output
+        forward_to = [prometheus.remote_write.mimir.receiver]
+
+        scrape_interval = "60s"
+        scrape_timeout  = "10s"
+
+        clustering {
+          enabled = true
+        }
+      }
+
+      prometheus.scrape "kubernetes_services" {
+        targets    = discovery.relabel.services_metrics.output
+        forward_to = [prometheus.remote_write.mimir.receiver]
+
+        scrape_interval = "60s"
+        scrape_timeout  = "10s"
+
+        clustering {
+          enabled = true
+        }
+      }
+
+      // NOTE: istiod, ztunnel, and waypoint metrics are scraped via PodMonitors
+      // defined in apps/istio-istiod/base/istio-metrics-podmonitor.yaml
+      // The hardcoded scrape configs below have been removed to prevent duplicate scraping
+      // which was causing Mimir out-of-order sample errors.
+
+      // ===========================================
+      // Kubelet Metrics (Manual Scrape - Workaround for Alloy Bug)
+      // ===========================================
+      // CRITICAL BUG WORKAROUND: Alloy v1.10.1's prometheus.operator.servicemonitors
+      // only scrapes the FIRST endpoint (index 0) of multi-endpoint ServiceMonitors.
+      // The kubelet ServiceMonitor has 3 endpoints:
+      //   - /metrics (kubelet metrics) - endpoint 0
+      //   - /metrics/cadvisor (container metrics) - endpoint 1 [MISSING WITHOUT THIS FIX]
+      //   - /metrics/probes (probe metrics) - endpoint 2 [MISSING WITHOUT THIS FIX]
+      // Without this workaround, ALL container_* metrics are missing, breaking
+      // Application Metrics dashboards across all namespaces.
+      //
+      // This explicit scraping replaces the ServiceMonitor discovery for kubelet only.
+
+      // Kubelet /metrics endpoint
+      discovery.relabel "kubelet_metrics" {
+        targets = discovery.kubernetes.nodes.targets
+
+        // Set address to node IP + kubelet port
+        rule {
+          source_labels = ["__address__"]
+          regex         = "([^:]+)(:\\d+)?"
+          replacement   = "$1:10250"
+          target_label  = "__address__"
+        }
+
+        // Set metrics path
+        rule {
+          replacement  = "/metrics"
+          target_label = "__metrics_path__"
+        }
+
+        // Add node label
+        rule {
+          source_labels = ["__meta_kubernetes_node_name"]
+          target_label  = "node"
+        }
+
+        // Add job label
+        rule {
+          replacement  = "kubelet"
+          target_label = "job"
+        }
+
+        // Add metrics_path label for identification
+        rule {
+          source_labels = ["__metrics_path__"]
+          target_label  = "metrics_path"
+        }
+      }
+
+      prometheus.scrape "kubelet_metrics" {
+        targets    = discovery.relabel.kubelet_metrics.output
+        forward_to = [prometheus.remote_write.mimir.receiver]
+
+        scrape_interval = "60s"
+        scrape_timeout  = "10s"
+
+        honor_labels      = true
+        honor_timestamps  = true
+
+        scheme = "https"
+        bearer_token_file = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+        tls_config {
+          ca_file = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+          insecure_skip_verify = true
+        }
+
+        clustering {
+          enabled = true
+        }
+      }
+
+      // Kubelet /metrics/cadvisor endpoint (CONTAINER METRICS - CRITICAL)
+      discovery.relabel "kubelet_cadvisor" {
+        targets = discovery.kubernetes.nodes.targets
+
+        // Set address to node IP + kubelet port
+        rule {
+          source_labels = ["__address__"]
+          regex         = "([^:]+)(:\\d+)?"
+          replacement   = "$1:10250"
+          target_label  = "__address__"
+        }
+
+        // Set metrics path
+        rule {
+          replacement  = "/metrics/cadvisor"
+          target_label = "__metrics_path__"
+        }
+
+        // Add node label (from Kubernetes metadata)
+        rule {
+          source_labels = ["__meta_kubernetes_node_name"]
+          target_label  = "node"
+        }
+
+        // Add job label
+        rule {
+          replacement  = "kubelet"
+          target_label = "job"
+        }
+
+        // Add metrics_path label for identification
+        rule {
+          source_labels = ["__metrics_path__"]
+          target_label  = "metrics_path"
+        }
+      }
+
+      prometheus.scrape "kubelet_cadvisor" {
+        targets    = discovery.relabel.kubelet_cadvisor.output
+        forward_to = [prometheus.remote_write.mimir.receiver]
+
+        scrape_interval = "60s"
+        scrape_timeout  = "10s"
+
+        honor_labels      = true
+        honor_timestamps  = true
+
+        scheme = "https"
+        bearer_token_file = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+        tls_config {
+          ca_file = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+          insecure_skip_verify = true
+        }
+
+        clustering {
+          enabled = true
+        }
+      }
+
+      // Kubelet /metrics/probes endpoint
+      discovery.relabel "kubelet_probes" {
+        targets = discovery.kubernetes.nodes.targets
+
+        // Set address to node IP + kubelet port
+        rule {
+          source_labels = ["__address__"]
+          regex         = "([^:]+)(:\\d+)?"
+          replacement   = "$1:10250"
+          target_label  = "__address__"
+        }
+
+        // Set metrics path
+        rule {
+          replacement  = "/metrics/probes"
+          target_label = "__metrics_path__"
+        }
+
+        // Add node label
+        rule {
+          source_labels = ["__meta_kubernetes_node_name"]
+          target_label  = "node"
+        }
+
+        // Add job label
+        rule {
+          replacement  = "kubelet"
+          target_label = "job"
+        }
+
+        // Add metrics_path label for identification
+        rule {
+          source_labels = ["__metrics_path__"]
+          target_label  = "metrics_path"
+        }
+      }
+
+      prometheus.scrape "kubelet_probes" {
+        targets    = discovery.relabel.kubelet_probes.output
+        forward_to = [prometheus.remote_write.mimir.receiver]
+
+        scrape_interval = "60s"
+        scrape_timeout  = "10s"
+
+        honor_labels      = true
+        honor_timestamps  = true
+
+        scheme = "https"
+        bearer_token_file = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+        tls_config {
+          ca_file = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+          insecure_skip_verify = true
+        }
+
+        clustering {
+          enabled = true
+        }
+      }
+
+      // ===========================================
+      // Remote Write to Mimir
+      // ===========================================
+
+      prometheus.remote_write "mimir" {
+        endpoint {
+          url = "http://mimir-gateway.mimir.svc.cluster.local:80/api/v1/push"
+
+          metadata_config {
+            send                 = true
+            send_interval        = "1m"
+            max_samples_per_send = 2000
+          }
+
+          queue_config {
+            capacity             = 15000
+            min_shards           = 2
+            max_shards           = 20
+            max_samples_per_send = 2000
+            batch_send_deadline  = "5s"
+            min_backoff          = "30ms"
+            max_backoff          = "5s"
+          }
+        }
+
+        wal {
+          truncate_frequency = "60m"
+          min_keepalive_time = "5m"
+          max_keepalive_time = "8m"
+        }
+
+        external_labels = {
+          cluster = "devm-k01",
+        }
+      }

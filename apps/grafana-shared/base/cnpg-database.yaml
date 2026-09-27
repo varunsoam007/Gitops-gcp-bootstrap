@@ -1,0 +1,19 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: grafana-shared
+  # Database CR must be in same namespace as the Cluster it references
+  # Kustomize patch in env overlays sets namespace to cnpg-shared
+  namespace: cnpg-shared
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  name: grafana_shared
+  owner: grafana_shared
+  cluster:
+    name: cnpg-shared
+  encoding: UTF8
+  # Use C locale to match template database collation
+  locale: C
+  template: template0

@@ -1,23 +1,20 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-namespace: external-secrets
 
 resources:
-  - namespace.yaml
-  - gcp-cluster-secret-store.yaml
+  - ../../base
 
-# ArgoCD will dynamically pull this Helm chart and inflate it using these values
+commonAnnotations:
+  argocd.argoproj.io/sync-options: ServerSideApply=true
+
+helmGlobals:
+  chartHome: ../../../../charts
+
 helmCharts:
-  - name: external-secrets
-    repo: https://charts.external-secrets.io
+  - name: external-secrets-1.2.0
     releaseName: external-secrets
-    version: 0.9.11
+    version: 1.2.0
     namespace: external-secrets
-    valuesInline:
-      installCRDs: true
-      serviceAccount:
-        create: true
-        name: "external-secrets-sa"
-        annotations:
-          # Binds this Kubernetes SA to our GCP Service Account via Workload Identity
-          iam.gke.io/gcp-service-account: "external-secrets@project-c487c7e3-8780-4424-9ad.iam.gserviceaccount.com"
+    additionalValuesFiles:
+      - ../../base/values-common.yaml
+      - values-additional.yaml

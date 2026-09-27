@@ -1,0 +1,8 @@
+apiVersion: v2
+name: gateway-api
+description: A Helm chart for Gateway API configuration
+type: application
+version: 0.1.0
+appVersion: "v1.3.0" # Gateway API version
+maintainers:
+  - name: PPUK DevOps team

@@ -1,0 +1,346 @@
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-options: ServerSideApply=true
+  name: acr-storage-overview
+  labels:
+    dashboards: "grafana"
+spec:
+  instanceSelector:
+    matchLabels:
+      dashboards: "grafana"
+  folder: "FinOps"
+  json: |
+    {
+      "title": "ACR Storage & Cost Overview",
+      "uid": "acr-storage-overview",
+      "schemaVersion": 42,
+      "version": 1,
+      "refresh": "5m",
+      "time": { "from": "now-7d", "to": "now" },
+      "timezone": "browser",
+      "tags": ["acr", "finops", "azure"],
+      "templating": {
+        "list": [
+          {
+            "name": "subscription",
+            "label": "Subscription",
+            "type": "query",
+            "datasource": {
+              "type": "grafana-azure-monitor-datasource",
+              "uid": "azure-monitor"
+            },
+            "query": "subscriptions()",
+            "refresh": 1,
+            "sort": 1,
+            "includeAll": false,
+            "hide": 0
+          },
+          {
+            "name": "resourceGroup",
+            "label": "Resource Group",
+            "type": "query",
+            "datasource": {
+              "type": "grafana-azure-monitor-datasource",
+              "uid": "azure-monitor"
+            },
+            "query": "resourceGroups($subscription)",
+            "refresh": 2,
+            "sort": 1,
+            "includeAll": false,
+            "hide": 0,
+            "current": {
+              "text": "rg-pin-containers-mgt-int-uks-001",
+              "value": "rg-pin-containers-mgt-int-uks-001"
+            }
+          },
+          {
+            "name": "registry",
+            "label": "ACR",
+            "type": "query",
+            "datasource": {
+              "type": "grafana-azure-monitor-datasource",
+              "uid": "azure-monitor"
+            },
+            "query": "resourceNames($subscription,$resourceGroup,Microsoft.ContainerRegistry/registries)",
+            "refresh": 2,
+            "includeAll": false,
+            "hide": 0
+          },
+          {
+            "name": "sku_daily_cost",
+            "label": "SKU Daily Cost (£/day)",
+            "type": "constant",
+            "query": "1.242",
+            "hide": 0,
+            "description": "UK South: Basic £0.125 | Standard £0.497 | Premium £1.242"
+          },
+          {
+            "name": "included_storage_GiB",
+            "label": "Included Storage (GiB)",
+            "type": "constant",
+            "query": "500",
+            "hide": 0,
+            "description": "Basic: 10 GiB | Standard: 100 GiB | Premium: 500 GiB"
+          }
+        ]
+      },
+      "panels": [
+        {
+          "id": 1,
+          "type": "stat",
+          "title": "Total Storage Used (GiB)",
+          "datasource": {
+            "type": "grafana-azure-monitor-datasource",
+            "uid": "azure-monitor"
+          },
+          "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+          "targets": [
+            {
+              "refId": "A",
+              "queryType": "Azure Monitor",
+              "subscription": "$subscription",
+              "azureMonitor": {
+                "aggregation": "Average",
+                "metricName": "StorageUsed",
+                "metricNamespace": "Microsoft.ContainerRegistry/registries",
+                "resourceGroup": "$resourceGroup",
+                "resourceName": "$registry",
+                "timeGrain": "PT1H"
+              }
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "bytes",
+              "decimals": 2,
+              "color": { "mode": "thresholds" },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "orange", "value": 10737418240 },
+                  { "color": "red", "value": 107374182400 }
+                ]
+              }
+            }
+          },
+          "options": {
+            "colorMode": "background",
+            "graphMode": "none",
+            "reduceOptions": { "calcs": ["lastNotNull"] }
+          }
+        },
+        {
+          "id": 2,
+          "type": "stat",
+          "title": "Estimated Monthly Cost (£)",
+          "datasource": {
+            "type": "grafana-azure-monitor-datasource",
+            "uid": "azure-monitor"
+          },
+          "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+          "targets": [
+            {
+              "refId": "A",
+              "hide": true,
+              "queryType": "Azure Monitor",
+              "subscription": "$subscription",
+              "azureMonitor": {
+                "aggregation": "Average",
+                "metricName": "StorageUsed",
+                "metricNamespace": "Microsoft.ContainerRegistry/registries",
+                "resourceGroup": "$resourceGroup",
+                "resourceName": "$registry",
+                "timeGrain": "PT1H"
+              }
+            },
+            {
+              "refId": "B",
+              "datasource": { "type": "__expr__", "uid": "__expr__" },
+              "type": "math",
+              "expression": "$A * 0 + 37.26 + (($A / 1073741824 - 500) + abs($A / 1073741824 - 500)) / 2 * 0.155"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "currencyGBP",
+              "decimals": 2,
+              "color": { "mode": "thresholds" },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 30 },
+                  { "color": "red", "value": 50 }
+                ]
+              }
+            }
+          },
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "reduceOptions": { "calcs": ["lastNotNull"] }
+          },
+          "description": "Premium: £1.242/day × 30 = £37.26/month registry fee + storage overage beyond 500 GiB at £0.155/GiB. Adjust SKU Daily Cost variable for Basic (£0.125) or Standard (£0.497)."
+        },
+        {
+          "id": 3,
+          "type": "timeseries",
+          "title": "Storage Growth (GiB)",
+          "datasource": {
+            "type": "grafana-azure-monitor-datasource",
+            "uid": "azure-monitor"
+          },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+          "targets": [
+            {
+              "refId": "A",
+              "queryType": "Azure Monitor",
+              "subscription": "$subscription",
+              "azureMonitor": {
+                "aggregation": "Average",
+                "metricName": "StorageUsed",
+                "metricNamespace": "Microsoft.ContainerRegistry/registries",
+                "resourceGroup": "$resourceGroup",
+                "resourceName": "$registry",
+                "timeGrain": "PT1H"
+              }
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "bytes",
+              "custom": { "lineWidth": 2, "fillOpacity": 10 }
+            }
+          },
+          "options": {
+            "tooltip": { "mode": "single" },
+            "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }
+          }
+        },
+        {
+          "id": 4,
+          "type": "timeseries",
+          "title": "Pull & Push Activity",
+          "datasource": {
+            "type": "grafana-azure-monitor-datasource",
+            "uid": "azure-monitor"
+          },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+          "targets": [
+            {
+              "refId": "A",
+              "legendFormat": "Pulls",
+              "queryType": "Azure Monitor",
+              "subscription": "$subscription",
+              "azureMonitor": {
+                "aggregation": "Total",
+                "metricName": "TotalPullCount",
+                "metricNamespace": "Microsoft.ContainerRegistry/registries",
+                "resourceGroup": "$resourceGroup",
+                "resourceName": "$registry",
+                "timeGrain": "PT1H"
+              }
+            },
+            {
+              "refId": "B",
+              "legendFormat": "Pushes",
+              "queryType": "Azure Monitor",
+              "subscription": "$subscription",
+              "azureMonitor": {
+                "aggregation": "Total",
+                "metricName": "TotalPushCount",
+                "metricNamespace": "Microsoft.ContainerRegistry/registries",
+                "resourceGroup": "$resourceGroup",
+                "resourceName": "$registry",
+                "timeGrain": "PT1H"
+              }
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": { "lineWidth": 2, "fillOpacity": 10 }
+            }
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }
+          }
+        },
+        {
+          "id": 5,
+          "type": "table",
+          "title": "Registry Info (SKU / Location)",
+          "datasource": {
+            "type": "grafana-azure-monitor-datasource",
+            "uid": "azure-monitor"
+          },
+          "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+          "targets": [
+            {
+              "refId": "A",
+              "queryType": "Azure Resource Graph",
+              "subscriptions": ["$subscription"],
+              "azureResourceGraph": {
+                "query": "Resources | where type =~ 'microsoft.containerregistry/registries' | where name =~ '$registry' | project name, resourceGroup, sku=tostring(sku.name), location",
+                "resultFormat": "table"
+              }
+            }
+          ],
+          "type": "table",
+          "options": { "showHeader": true, "cellHeight": "sm" }
+        },
+        {
+          "id": 6,
+          "type": "stat",
+          "title": "Estimated Daily Cost (£)",
+          "datasource": {
+            "type": "grafana-azure-monitor-datasource",
+            "uid": "azure-monitor"
+          },
+          "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+          "targets": [
+            {
+              "refId": "A",
+              "hide": true,
+              "queryType": "Azure Monitor",
+              "subscription": "$subscription",
+              "azureMonitor": {
+                "aggregation": "Average",
+                "metricName": "StorageUsed",
+                "metricNamespace": "Microsoft.ContainerRegistry/registries",
+                "resourceGroup": "$resourceGroup",
+                "resourceName": "$registry",
+                "timeGrain": "PT1H"
+              }
+            },
+            {
+              "refId": "B",
+              "datasource": { "type": "__expr__", "uid": "__expr__" },
+              "type": "math",
+              "expression": "$A * 0 + 1.242 + (($A / 1073741824 - 500) + abs($A / 1073741824 - 500)) / 2 * 0.155 / 30"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "currencyGBP",
+              "decimals": 4,
+              "color": { "mode": "thresholds" },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [{ "color": "green", "value": null }]
+              }
+            }
+          },
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "reduceOptions": { "calcs": ["lastNotNull"] }
+          },
+          "description": "Premium: £1.242/day registry fee + storage overage beyond 500 GiB at £0.155/GiB/month ÷ 30."
+        }
+      ]
+    }

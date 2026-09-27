@@ -1,0 +1,35 @@
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDatasource
+metadata:
+  name: testkube-postgres
+spec:
+  allowCrossNamespaceImport: true
+  instanceSelector:
+    matchLabels:
+      dashboards: "grafana"
+  datasource:
+    name: Testkube PostgreSQL
+    type: postgres
+    uid: testkube-postgres
+    access: proxy
+    # Grafana PostgreSQL datasource expects host:port (no http:// scheme)
+    url: cnpg-shared-rw.cnpg-shared.svc.cluster.local:5432
+    user: "testkube"
+    jsonData:
+      database: backend
+      sslmode: disable
+      postgresVersion: 1700
+      timescaledb: false
+    secureJsonData:
+      password: ""
+  valuesFrom:
+    - targetPath: datasource.user
+      valueFrom:
+        secretKeyRef:
+          name: testkube-user-secret
+          key: username
+    - targetPath: datasource.secureJsonData.password
+      valueFrom:
+        secretKeyRef:
+          name: testkube-user-secret
+          key: password

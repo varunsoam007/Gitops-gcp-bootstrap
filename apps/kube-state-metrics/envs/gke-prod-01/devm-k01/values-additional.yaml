@@ -1,0 +1,39 @@
+# kube-state-metrics configuration for devm-k01
+# Deployment that exposes Kubernetes object state metrics
+
+# Private ACR for images
+image:
+  registry: crpinthirdpartymgtintuks001.azurecr.io
+  repository: kube-state-metrics/kube-state-metrics
+
+# Enable ServiceMonitor for Alloy discovery
+prometheus:
+  monitor:
+    enabled: true
+    namespace: kube-state-metrics
+    interval: 30s
+    scrapeTimeout: 10s
+
+# Pin to stable AKS system-pool nodes (survives default pool rotation)
+nodeSelector:
+  kubernetes.azure.com/mode: system
+  kubernetes.azure.com/priority: regular
+
+# System pool nodes carry the CriticalAddonsOnly taint; tolerate it to schedule
+tolerations:
+  - effect: NoSchedule
+    key: CriticalAddonsOnly
+    operator: Exists
+
+
+# Run 2 replicas for higher availability
+replicas: 2
+
+# Guaranteed QoS: keep req==lim to reduce OOM eviction risk under node pressure
+resources:
+  requests:
+    cpu: 15m
+    memory: 121Mi
+  limits:
+    cpu: 15m
+    memory: 122Mi

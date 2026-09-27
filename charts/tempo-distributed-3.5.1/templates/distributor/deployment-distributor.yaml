@@ -1,0 +1,70 @@
+{{ $dict := dict "ctx" . "component" "distributor" "memberlist" true }}
+{{/*
+Build extraPorts by merging trace-protocol ports (derived from traces.* values) with any
+user-defined distributor.extraPorts.  This preserves backward compatibility: previously
+these protocol ports were rendered inline in this template; now they are supplied as
+component.extraPorts so the shared tempo.podTemplate helper renders them after the two
+standard ports (http-memberlist, http-metrics).
+Duplicates are removed so that a user can override a trace port via distributor.extraPorts
+without ending up with two entries for the same port.
+*/}}
+{{- $extraPorts := list }}
+{{- if .Values.traces.jaeger.thriftCompact.enabled }}
+{{- $extraPorts = append $extraPorts (dict "containerPort" 6831 "name" "jaeger-compact" "protocol" "UDP") }}
+{{- end }}
+{{- if .Values.traces.jaeger.thriftBinary.enabled }}
+{{- $extraPorts = append $extraPorts (dict "containerPort" 6832 "name" "jaeger-binary" "protocol" "UDP") }}
+{{- end }}
+{{- if .Values.traces.jaeger.thriftHttp.enabled }}
+{{- $extraPorts = append $extraPorts (dict "containerPort" 14268 "name" "jaeger-http" "protocol" "TCP") }}
+{{- end }}
+{{- if .Values.traces.jaeger.grpc.enabled }}
+{{- $extraPorts = append $extraPorts (dict "containerPort" 14250 "name" "grpc-jaeger" "protocol" "TCP") }}
+{{- end }}
+{{- if .Values.traces.zipkin.enabled }}
+{{- $extraPorts = append $extraPorts (dict "containerPort" 9411 "name" "zipkin" "protocol" "TCP") }}
+{{- end }}
+{{- if .Values.traces.otlp.http.enabled }}
+{{- $extraPorts = append $extraPorts (dict "containerPort" 4318 "name" "otlp-http" "protocol" "TCP") }}
+{{- end }}
+{{- if .Values.traces.otlp.grpc.enabled }}
+{{- $extraPorts = append $extraPorts (dict "containerPort" 4317 "name" "grpc-otlp" "protocol" "TCP") }}
+{{- end }}
+{{/* Append any user-defined extra ports after the trace-protocol ports; remove duplicates */}}
+{{- $extraPorts = concat $extraPorts (.Values.distributor.extraPorts | default list) | uniq }}
+{{/* Merge the computed extraPorts into a copy of the distributor component dict so that
+  tempo.podTemplate renders the full set of ports from $component.extraPorts */}}
+{{- $component := merge (dict "extraPorts" $extraPorts) .Values.distributor }}
+{{/* Inject -shutdown-delay before extraArgs so a user-supplied extraArgs override can't drop it. "0s" (default) renders nothing. */}}
+{{- $podArgs := list }}
+{{- with .Values.distributor.shutdownDelay }}
+{{- if ne (. | toString) "0s" }}
+{{- $podArgs = append $podArgs (printf "-shutdown-delay=%s" .) }}
+{{- end }}
+{{- end }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "tempo.resourceName" $dict }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+  {{- include "tempo.labels" $dict | nindent 4 }}
+  {{- with .Values.distributor.annotations }}
+  annotations:
+  {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  minReadySeconds: {{ .Values.distributor.minReadySeconds }}
+{{- if not .Values.distributor.autoscaling.enabled }}
+  replicas: {{ .Values.distributor.replicas }}
+{{- end }}
+  revisionHistoryLimit: {{ .Values.tempo.revisionHistoryLimit }}
+  selector:
+    matchLabels:
+      {{- include "tempo.selectorLabels" $dict | nindent 6 }}
+{{- with .Values.distributor.strategy }}
+  strategy:
+{{- toYaml . | nindent 4 }}
+{{- end }}
+  template:
+    {{- include "tempo.podTemplate" (dict "ctx" $ "component" $component "target" "distributor" "args" $podArgs) | nindent 4 }}

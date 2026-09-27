@@ -1,0 +1,185 @@
+{{- $networkPolicy := .Values.networkPolicy | default dict }}
+{{- $ingress := get $networkPolicy "ingress" | default dict }}
+{{- $catalogue := .Values.ingressPolicyCatalogue | default dict }}
+{{- $selectedPolicies := $ingress.policyFromCatalogue | default list }}
+
+{{- if $selectedPolicies }}
+{{- range $policyName := $selectedPolicies }}
+{{- if not (hasKey $catalogue $policyName) }}
+{{- fail (printf "ingressPolicyCatalogue entry %q not found" $policyName) }}
+{{- end }}
+{{- $policy := index $catalogue $policyName }}
+
+---
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: {{ $policyName }}
+  namespace: {{ $.Release.Namespace }}
+
+spec:
+{{- if and $policy.targetService (ne $policy.scope "namespace") }}
+  targetRefs:
+    - kind: Service
+      group: ""
+      name: {{ $policy.targetService }}
+{{- end }}
+
+  action: {{ $policy.action | default "ALLOW" }}
+
+  rules:
+{{- range $rule := ($policy.rules | default list) }}
+    -
+{{- if $rule.from }}
+      from:
+        - source:
+{{- if $rule.from.principals }}
+            principals:
+{{- range $rule.from.principals }}
+              - {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- if $rule.from.notPrincipals }}
+            notPrincipals:
+{{- range $rule.from.notPrincipals }}
+              - {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- if $rule.from.serviceAccounts }}
+            serviceAccounts:
+{{- range $rule.from.serviceAccounts }}
+              - {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- if $rule.from.notServiceAccounts }}
+            notServiceAccounts:
+{{- range $rule.from.notServiceAccounts }}
+              - {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- if $rule.from.namespaces }}
+            namespaces:
+{{- range $rule.from.namespaces }}
+{{- if eq . "." }}
+              - "{{ $.Release.Namespace }}"
+{{- else }}
+              - {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- if $rule.from.notNamespaces }}
+            notNamespaces:
+{{- range $rule.from.notNamespaces }}
+              - {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- if $rule.from.ipBlocks }}
+            ipBlocks:
+{{- range $rule.from.ipBlocks }}
+              - {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- if $rule.from.notIpBlocks }}
+            notIpBlocks:
+{{- range $rule.from.notIpBlocks }}
+              - {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- if $rule.from.remoteIpBlocks }}
+            remoteIpBlocks:
+{{- range $rule.from.remoteIpBlocks }}
+              - {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- if $rule.from.notRemoteIpBlocks }}
+            notRemoteIpBlocks:
+{{- range $rule.from.notRemoteIpBlocks }}
+              - {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- if $rule.from.requestPrincipals }}
+            requestPrincipals:
+{{- range $rule.from.requestPrincipals }}
+              - {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- if $rule.from.notRequestPrincipals }}
+            notRequestPrincipals:
+{{- range $rule.from.notRequestPrincipals }}
+              - {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- if $rule.to }}
+      to:
+        - operation:
+{{- if $rule.to.hosts }}
+            hosts:
+{{- range $rule.to.hosts }}
+              - {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- if $rule.to.notHosts }}
+            notHosts:
+{{- range $rule.to.notHosts }}
+              - {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- if $rule.to.methods }}
+            methods:
+{{- range $rule.to.methods }}
+              - {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- if $rule.to.notMethods }}
+            notMethods:
+{{- range $rule.to.notMethods }}
+              - {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- if $rule.to.paths }}
+            paths:
+{{- range $rule.to.paths }}
+              - {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- if $rule.to.notPaths }}
+            notPaths:
+{{- range $rule.to.notPaths }}
+              - {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- if $rule.to.ports }}
+            ports:
+{{- range $rule.to.ports }}
+              - {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- if $rule.to.notPorts }}
+            notPorts:
+{{- range $rule.to.notPorts }}
+              - {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- if $rule.when }}
+      when:
+{{- range $condition := $rule.when }}
+        - key: {{ $condition.key | quote }}
+{{- if $condition.values }}
+          values:
+{{- range $condition.values }}
+            - {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- if $condition.notValues }}
+          notValues:
+{{- range $condition.notValues }}
+            - {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

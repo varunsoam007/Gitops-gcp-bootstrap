@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: grafana-shared
+  annotations:
+    argocd.argoproj.io/sync-wave: "-3"
+  labels:
+    app.kubernetes.io/name: grafana-shared
+    # Enable Istio ambient mode for mTLS to Mimir/Loki
+    istio.io/dataplane-mode: ambient
+    istio.io/use-waypoint: shared-waypoint
+    istio.io/use-waypoint-namespace: gateway-api
+    allow-shared-waypoint-access: "true"
+    allow-shared-gateway-ext-access: "true"
+    allow-shared-gateway-int-access: "true"

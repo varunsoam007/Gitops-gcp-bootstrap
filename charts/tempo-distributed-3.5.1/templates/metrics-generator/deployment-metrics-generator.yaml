@@ -1,0 +1,29 @@
+{{- if and (.Values.metricsGenerator.enabled) (eq .Values.metricsGenerator.kind "Deployment") }}
+{{ $dict := dict "ctx" . "component" "metrics-generator" "memberlist" true }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "tempo.resourceName" $dict }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+  {{- include "tempo.labels" $dict | nindent 4 }}
+  {{- with .Values.metricsGenerator.annotations }}
+  annotations:
+  {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  minReadySeconds: {{ .Values.metricsGenerator.minReadySeconds }}
+  replicas: {{ .Values.metricsGenerator.replicas }}
+  revisionHistoryLimit: {{ .Values.tempo.revisionHistoryLimit }}
+  selector:
+    matchLabels:
+      {{- include "tempo.selectorLabels" $dict | nindent 6 }}
+  template:
+    {{- include "tempo.podTemplate" (dict
+        "ctx" .
+        "component" .Values.metricsGenerator
+        "target" "metrics-generator"
+        "dataVolumeName" "wal"
+        "dataEmptyDir" .Values.metricsGenerator.walEmptyDir
+        "ports" .Values.metricsGenerator.ports) | nindent 4 }}
+{{- end }}

@@ -1,0 +1,40 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+helmGlobals:
+  chartHome: ../../../../charts
+
+helmCharts:
+  # Logs collection - DaemonSet (lightweight, runs on every node)
+  - name: alloy-1.11.1
+    releaseName: alloy-logs
+    namespace: alloy
+    additionalValuesFiles:
+      - ../../base/values-common.yaml
+      - values-logs.yaml
+
+  # Metrics scraping - Deployment (centralized, 2 replicas with clustering)
+  - name: alloy-1.11.1
+    releaseName: alloy-metrics
+    namespace: alloy
+    additionalValuesFiles:
+      - ../../base/values-common.yaml
+      - values-metrics.yaml
+
+  # Auth layer for the Alloy UI
+  - name: auth-templates-1.2.0
+    releaseName: alloy-auth
+    namespace: alloy
+    additionalValuesFiles:
+      - values-auth.yaml
+
+  # Traces ingestion - Deployment (dedicated OTLP receiver/export pipeline)
+  - name: alloy-1.11.1
+    releaseName: alloy-traces
+    namespace: alloy
+    additionalValuesFiles:
+      - ../../base/values-common.yaml
+      - values-traces.yaml

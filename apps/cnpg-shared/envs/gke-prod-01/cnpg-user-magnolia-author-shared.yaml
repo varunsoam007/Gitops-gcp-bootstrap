@@ -1,0 +1,36 @@
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: magnolia-author-shared-user-secret
+  annotations:
+    argocd.argoproj.io/sync-options: ServerSideApply=true
+spec:
+  # Weekly rotation - 168h = 7 days
+  # Note: Exact timing depends on when secret was created/last refreshed
+  # To align with Monday 02:00 UTC, manually trigger refresh at that time
+  refreshInterval: "168h"
+  target:
+    name: magnolia-author-shared-user-secret
+    creationPolicy: Owner
+    deletionPolicy: Retain
+    template:
+      engineVersion: v2
+      metadata:
+        annotations:
+          reflector.v1.k8s.emberstack.com/reflection-allowed: "true"
+          reflector.v1.k8s.emberstack.com/reflection-allowed-namespaces: "magnolia-author-shared"
+          reflector.v1.k8s.emberstack.com/reflection-auto-enabled: "true"
+          reflector.v1.k8s.emberstack.com/reflection-auto-namespaces: "magnolia-author-shared"
+        labels:
+          cnpg.io/reload: "true"
+      data:
+        username: magnolia_author_shared
+        password: "{{ .password }}"
+      type: kubernetes.io/basic-auth
+
+  dataFrom:
+    - sourceRef:
+        generatorRef:
+          apiVersion: generators.external-secrets.io/v1alpha1
+          kind: ClusterGenerator
+          name: database-password-generator

@@ -1,0 +1,31 @@
+{{- if .Values.defaultDenyAll.enabled }}
+{{- $cfg := dict "waypoint" .Values.waypoint }}
+{{- $policyNamespace := include "egress.policyNamespace" (list . $cfg) }}
+{{- $baseName := .Values.defaultDenyAll.name | default "default-deny-all-egress" }}
+{{- $policyName := include "egress.policyName" (list . $cfg $baseName) }}
+---
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: {{ $policyName }}
+  namespace: {{ $policyNamespace }}
+
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: {{ include "egress.waypointName" (list . $cfg) }}
+
+  action: {{ .Values.defaultDenyAll.action | default "DENY" }}
+
+{{- if .Values.defaultDenyAll.restrictToReleaseNamespace }}
+  rules:
+    - from:
+        - source:
+            namespaces:
+              - {{ .Release.Namespace | quote }}
+{{- else }}
+  rules:
+    - {}
+{{- end }}
+{{- end }}

@@ -1,0 +1,63 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+  - azure-config.yaml
+
+configMapGenerator:
+  - name: external-config
+    options:
+      disableNameSuffixHash: true
+    envs:
+      - config.properties
+
+replacements:
+  # Replace workload identity client_id in ServiceAccount
+  - source:
+      kind: ConfigMap
+      name: external-config
+      fieldPath: data.client_id
+    targets:
+      - select:
+          kind: ServiceAccount
+          name: tempo
+        fieldPaths:
+          - metadata.annotations.[azure.workload.identity/client-id]
+
+  # Populate the dedicated Azure storage ConfigMap (scalar fields only)
+  - source:
+      kind: ConfigMap
+      name: external-config
+      fieldPath: data.storage_account_name
+    targets:
+      - select:
+          kind: ConfigMap
+          name: tempo-azure-config
+        fieldPaths:
+          - data.storage_account_name
+
+  - source:
+      kind: ConfigMap
+      name: external-config
+      fieldPath: data.traces_container_name
+    targets:
+      - select:
+          kind: ConfigMap
+          name: tempo-azure-config
+        fieldPaths:
+          - data.traces_container_name
+
+
+helmGlobals:
+  chartHome: ../../../../charts
+
+helmCharts:
+  - name: tempo-distributed-3.5.1
+    includeCRDs: true
+    version: 3.5.1
+    releaseName: tempo
+    namespace: tempo
+    additionalValuesFiles:
+      - ../../base/values-common.yaml
+      - values-additional.yaml

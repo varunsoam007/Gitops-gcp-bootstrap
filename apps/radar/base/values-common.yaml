@@ -1,0 +1,25 @@
+# Shared gateway auth is enforced via auth-templates (Istio ext_authz)
+auth:
+  mode: none
+
+rbac:
+  helm: false
+  podExec: false
+  traffic: false
+  portForward: false
+  secrets: false
+  viewRBAC: false
+
+mcp:
+  enabled: false
+
+traffic:
+  prometheusUrl: "http://mimir-gateway.mimir.svc.cluster.local:80/prometheus"
+
+resources:
+  requests:
+    cpu: 23m
+    memory: 1181Mi
+  limits:
+    cpu: 23m
+    memory: 1190Mi

@@ -1,0 +1,161 @@
+#====================================
+# Gateway Options ConfigMaps
+# Shared configuration for all environments
+#====================================
+
+gatewayOptions:
+  external:
+    enabled: true
+    name: "gw-options-ext"
+    data:
+      horizontalPodAutoscaler: |
+        spec:
+          minReplicas: 3
+          maxReplicas: 5
+          metrics:
+          - type: Resource
+            resource:
+              name: cpu
+              target:
+                type: Utilization
+                averageUtilization: 50
+
+      podDisruptionBudget: |
+        spec:
+          minAvailable: 50%
+          selector:
+            matchLabels:
+              gateway.networking.k8s.io/gateway-name: shared-gateway-ext
+
+      # Deployment template overrides - graceful shutdown and priority
+      deployment: |
+        spec:
+          template:
+            spec:
+              terminationGracePeriodSeconds: 30
+              priorityClassName: observability-critical
+              containers:
+              - name: istio-proxy
+                resources:
+                  requests:
+                    cpu: 5m
+                    memory: 128Mi
+                  limits:
+                    memory: 128Mi
+
+  internal:
+    enabled: true
+    name: "gw-options-int"
+    data:
+      horizontalPodAutoscaler: |
+        spec:
+          minReplicas: 3
+          maxReplicas: 5
+          metrics:
+          - type: Resource
+            resource:
+              name: cpu
+              target:
+                type: Utilization
+                averageUtilization: 50
+
+      podDisruptionBudget: |
+        spec:
+          minAvailable: 50%
+          selector:
+            matchLabels:
+              gateway.networking.k8s.io/gateway-name: shared-gateway-int
+
+      # Deployment template overrides - graceful shutdown and priority
+      deployment: |
+        spec:
+          template:
+            spec:
+              terminationGracePeriodSeconds: 30
+              priorityClassName: observability-critical
+              containers:
+              - name: istio-proxy
+                resources:
+                  requests:
+                    cpu: 5m
+                    memory: 192Mi
+                  limits:
+                    memory: 192Mi
+
+  waypoint:
+    enabled: true
+    name: "gw-options-waypoint"
+    data:
+      horizontalPodAutoscaler: |
+        spec:
+          minReplicas: 3
+          maxReplicas: 5
+          metrics:
+          - type: Resource
+            resource:
+              name: cpu
+              target:
+                type: Utilization
+                averageUtilization: 50
+
+      podDisruptionBudget: |
+        spec:
+          minAvailable: 50%
+          selector:
+            matchLabels:
+              gateway.networking.k8s.io/gateway-name: shared-waypoint
+
+      # Deployment template overrides - graceful shutdown and priority
+      deployment: |
+        spec:
+          template:
+            spec:
+              terminationGracePeriodSeconds: 30
+              priorityClassName: observability-critical
+              containers:
+              - name: istio-proxy
+                resources:
+                  requests:
+                    cpu: 5m
+                    memory: 192Mi
+                  limits:
+                    memory: 192Mi
+
+  waypointEgress:
+    enabled: true
+    name: "gw-options-waypoint-egress"
+    data:
+      horizontalPodAutoscaler: |
+        spec:
+          minReplicas: 3
+          maxReplicas: 5
+          metrics:
+          - type: Resource
+            resource:
+              name: cpu
+              target:
+                type: Utilization
+                averageUtilization: 50
+
+      podDisruptionBudget: |
+        spec:
+          minAvailable: 50%
+          selector:
+            matchLabels:
+              gateway.networking.k8s.io/gateway-name: shared-waypoint-egress
+
+      # Deployment template overrides - graceful shutdown and priority
+      deployment: |
+        spec:
+          template:
+            spec:
+              terminationGracePeriodSeconds: 30
+              priorityClassName: observability-critical
+              containers:
+              - name: istio-proxy
+                resources:
+                  requests:
+                    cpu: 5m
+                    memory: 128Mi
+                  limits:
+                    memory: 128Mi

@@ -1,0 +1,23 @@
+# WARNING: DO NOT EDIT, THIS FILE IS A COPY.
+# The original version of this file is located at /manifests/helm-profiles directory.
+# If you want to make a change in this file, edit the original one and run "make gen".
+
+# The stable profile deploys admission control to ensure that only stable resources and fields are used
+# THIS IS CURRENTLY EXPERIMENTAL AND SUBJECT TO CHANGE
+experimental:
+  stableValidationPolicy: true
+
+meshConfig:
+  extensionProviders:
+  - name: oauth2-proxy-ext-authz
+    envoyExtAuthzHttp:
+      service: oauth2-proxy.platform-auth.svc.cluster.local
+      port: 4180
+      pathPrefix: /oauth2/auth
+      includeRequestHeadersInCheck:
+        - ":method"
+        - ":path"
+        - ":authority"
+        - "x-forwarded-proto"
+        - "x-forwarded-host"
+        - "x-request-id"

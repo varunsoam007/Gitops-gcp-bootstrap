@@ -1,0 +1,43 @@
+{{- if .Values.authzDenyRewrite.enabled }}
+{{- $rewriteName := .Values.authzDenyRewrite.name | default (printf "%s-authz-deny-rewrite" .Release.Name) }}
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: {{ $rewriteName }}
+  namespace: {{ .Values.namespace.name }}
+spec:
+  configPatches:
+  {{- range $port := .Values.authzDenyRewrite.targetPorts }}
+  - applyTo: NETWORK_FILTER
+    match:
+      context: GATEWAY
+      listener:
+        portNumber: {{ $port }}
+        filterChain:
+          filter:
+            name: envoy.filters.network.http_connection_manager
+    patch:
+      operation: MERGE
+      value:
+        name: envoy.filters.network.http_connection_manager
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+          local_reply_config:
+            mappers:
+            - filter:
+                extension_filter:
+                  name: envoy.access_loggers.extension_filters.cel
+                  typed_config:
+                    "@type": type.googleapis.com/envoy.extensions.access_loggers.filters.cel.v3.ExpressionFilter
+                    expression: {{ printf "response.code == 403 && (response.code_details == '%s' || response.code_details.startsWith('%s'))" $.Values.authzDenyRewrite.match.extAuthzDenied $.Values.authzDenyRewrite.match.rbacPrefix | quote }}
+              body_format_override:
+                json_format:
+                  error: {{ $.Values.authzDenyRewrite.response.error | quote }}
+                  message: {{ $.Values.authzDenyRewrite.response.message | quote }}
+                  status: 403
+                  detail: "%RESPONSE_CODE_DETAILS%"
+                  path: "%REQ(:PATH)%"
+                  request_id: "%REQ(X-REQUEST-ID)%"
+                content_type: {{ $.Values.authzDenyRewrite.response.contentType | quote }}
+  {{- end }}
+{{- end }}

@@ -1,0 +1,182 @@
+
+#================================================
+# waypoint resources
+# Set waypointResources.enabled: true to render Gateway, ConfigMap and Telemetry
+#================================================
+waypointResources:
+  enabled: false
+
+  gateway:
+    name: ""
+    labels:
+      istio.io/waypoint-for: all
+    annotations:
+      argocd.argoproj.io/sync-wave: "-1"
+    gatewayClassName: istio-waypoint
+    listeners:
+      - name: mesh
+        port: 15008
+        protocol: HBONE
+        allowedRoutes:
+          namespaces:
+            from: Same
+    infrastructure:
+      enabled: true
+      parametersRef:
+        group: ""
+        kind: ConfigMap
+        name: gw-options-waypoint
+
+  configMap:
+    enabled: true
+    name: gw-options-waypoint
+    annotations:
+      argocd.argoproj.io/sync-wave: "-1"
+    horizontalPodAutoscaler:
+      enabled: true
+      minReplicas: 2
+      maxReplicas: 3
+      cpuAverageUtilization: 60
+    podDisruptionBudget:
+      enabled: true
+      minAvailable: 1
+    deployment:
+      enabled: true
+      proxyConfigJson: '{"accessLogFile":"/dev/stdout","accessLogEncoding":"JSON"}'
+      agentLogLevel: "default:info"
+      proxyLogLevel: "warning"
+      proxyComponentLogLevel: "misc:error"
+      proxyResources:
+        requests:
+          cpu: 10m
+          memory: 128Mi
+        limits:
+          memory: 256Mi
+      tolerations:
+        - effect: NoSchedule
+          key: kubernetes.azure.com/scalesetpriority
+          operator: Equal
+          value: spot
+
+  telemetry:
+    enabled: true
+    name: ""
+    accessLogging:
+      - providers:
+          - name: envoy
+        disabled: false
+
+# Namespace-level mTLS policy (meshfeatures.yaml).
+# Set enabled: true to enforce STRICT mTLS for the namespace.
+peerAuthentication:
+  enabled: true
+  name: default
+  mode: STRICT
+
+#================================================
+# egress-policy
+#================================================
+waypoint:
+  name: waypoint
+
+egressCatalogue:
+
+  google-apis:
+    hosts:
+      - bigquery.googleapis.com
+      - storage.googleapis.com
+      - www.googleapis.com
+      - oauth2.googleapis.com
+
+    port: 443
+    portName: https
+    protocol: HTTPS
+
+    policies:
+      l7:
+        enabled: true
+      l4:
+        enabled: false
+
+  azure-mgmt:
+    hosts:
+      - management.azure.com
+
+    port: 443
+    portName: https
+    protocol: HTTPS
+
+    policies:
+      l7:
+        enabled: true
+
+  vip-proxy:
+    hosts:
+      - vip-proxy.uk.pinpetgroup.com
+
+    port: 8080
+    portName: http
+    protocol: HTTP
+
+    policies:
+      l7:
+        enabled: true
+
+  azure-monitor:
+    hosts:
+      - "*.sql.yyy.com"
+
+    port: 1433
+    portName: sql
+    protocol: TCP
+
+    policies:
+      l4:
+        enabled: true
+
+  central-egress-api:
+    hosts:
+      - api.vendor.com
+
+    port: 443
+    portName: https
+    protocol: HTTPS
+
+    policies:
+      l7:
+        enabled: true
+
+    tlsOrigination: true
+    tlsOriginationMode: SIMPLE
+
+  # ============================================================================
+  # INTERNAL (MESH_INTERNAL)
+  # ============================================================================
+  internal-example-api:
+    location: MESH_INTERNAL
+    hosts:
+      - "my-internal-api.other-namespace.svc.cluster.local"
+
+    port: 80
+    portName: http
+    protocol: HTTP
+
+    policies:
+      l7:
+        enabled: true
+
+
+#================================================
+# ingreess-policy
+#================================================
+
+# networkPolicies: ingress
+
+ingressPolicyCatalogue:
+
+  allow-same-namespace:
+    rules:
+      - from:
+          namespaces:
+            - "."
+

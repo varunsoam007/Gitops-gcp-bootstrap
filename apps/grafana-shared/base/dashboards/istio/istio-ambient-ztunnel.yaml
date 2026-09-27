@@ -1,0 +1,19 @@
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-options: ServerSideApply=true
+  name: istio-ambient-ztunnel
+  labels:
+    dashboards: "grafana"
+spec:
+  instanceSelector:
+    matchLabels:
+      dashboards: "grafana"
+  folder: "Platform Components"
+  url: https://raw.githubusercontent.com/istio/istio/release-1.29/manifests/addons/dashboards/ztunnel-dashboard.gen.json
+  datasources:
+    - inputName: datasource
+      datasourceName: mimir
+    - inputName: DS_PROMETHEUS
+      datasourceName: mimir

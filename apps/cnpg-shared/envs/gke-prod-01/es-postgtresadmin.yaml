@@ -1,0 +1,25 @@
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/external-secrets.io/externalsecret_v1.json
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: postgresadmin
+  annotations:
+    argocd.argoproj.io/sync-options: ServerSideApply=true,SkipDryRunOnMissingResource=true
+    argocd.argoproj.io/sync-wave: "-2"
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    kind: SecretStore
+    name: kv-pin-aks-devm-int-uks
+
+  target:
+    name: postgresadmin
+    creationPolicy: Owner
+
+  dataFrom:
+    - extract:
+        key: secret/cnpgshared-postgresadmin
+        conversionStrategy: Default
+        decodingStrategy: None
+        metadataPolicy: None
+        # property: "*"

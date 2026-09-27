@@ -1,0 +1,35 @@
+# apiVersion: templates.gatekeeper.sh/v1beta1
+# kind: ConstraintTemplate
+# metadata:
+#   name: requireimagecatalogref
+# spec:
+#   crd:
+#     spec:
+#       names:
+#         kind: RequireImageCatalogRef
+#       validation:
+#         openAPIV3Schema:
+#           properties:
+#             allowedCatalogNames:
+#               type: array
+#               items:
+#                 type: string
+#   targets:
+#     - target: admission.k8s.gatekeeper.sh
+#       rego: |
+#         package requireimagecatalogref
+
+#         violation[{"msg": msg}] {
+#           input.review.kind.kind == "Cluster"
+#           input.review.kind.group == "postgresql.cnpg.io"
+#           not input.review.object.spec.imageCatalogRef
+#           msg := "spec.imageCatalogRef must be set and reference a ClusterImageCatalog"
+#         }
+
+#         violation[{"msg": msg}] {
+#           input.review.kind.kind == "Cluster"
+#           input.review.kind.group == "postgresql.cnpg.io"
+#           input.review.object.spec.imageCatalogRef
+#           not input.review.object.spec.imageCatalogRef.name in input.parameters.allowedCatalogNames
+#           msg := sprintf("spec.imageCatalogRef.name must be one of %v", [input.parameters.allowedCatalogNames])
+#         }

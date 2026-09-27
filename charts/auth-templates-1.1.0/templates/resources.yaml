@@ -1,0 +1,1 @@
+{{- /* Resources are rendered directly by authorizationpolicy.yaml, oauth2-callback-route.yaml, and referencegrant.yaml */ -}}

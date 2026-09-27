@@ -1,0 +1,8 @@
+# Auth layer for the Alloy UI in devm-k01.
+# This enables Entra ID login via the shared platform-auth service.
+
+auth:
+  enabled: true
+  hostname: alloy.k01.devm.corp.pinpetuk.net
+  requiredRoles:
+    - "alloy.access"

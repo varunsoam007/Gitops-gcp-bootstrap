@@ -1,0 +1,14 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - folder-tempo.yaml
+  - tempo-backendwork.yaml
+  - tempo-block-builder.yaml
+  - tempo-livestore.yaml
+  - tempo-operational.yaml
+  - tempo-reads.yaml
+  - tempo-resources.yaml
+  - tempo-rollout-progress.yaml
+  - tempo-service-graph.yaml
+  - tempo-tenants.yaml
+  - tempo-writes.yaml

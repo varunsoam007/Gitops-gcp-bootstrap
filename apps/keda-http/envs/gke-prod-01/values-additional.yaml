@@ -1,0 +1,49 @@
+# Environment-specific overrides for devm-k01 (development).
+# Minimal footprint; HA disabled.
+
+# Mirror upstream ghcr.io images through the third-party ACR pull-through cache.
+images:
+  operator: crpinthirdpartymgtintuks001.azurecr.io/kedacore/http-add-on-operator
+  interceptor: crpinthirdpartymgtintuks001.azurecr.io/kedacore/http-add-on-interceptor
+  scaler: crpinthirdpartymgtintuks001.azurecr.io/kedacore/http-add-on-scaler
+
+operator:
+  replicas: 1
+  nodeSelector:
+    karpenter.sh/capacity-type: on-demand
+    resources:
+      requests:
+        cpu: 15m
+        memory: 100Mi
+      limits:
+        cpu: 15m
+        memory: 100Mi
+
+scaler:
+  replicas: 1
+  nodeSelector:
+    karpenter.sh/capacity-type: on-demand
+    resources:
+      requests:
+        cpu: 15m
+        memory: 100Mi
+      limits:
+        cpu: 15m
+        memory: 100Mi
+
+interceptor:
+  replicas:
+    min: 1
+    max: 3
+  # Single replica in dev -> PDB would block voluntary disruption.
+  pdb:
+    enabled: false
+  nodeSelector:
+    karpenter.sh/capacity-type: on-demand
+    resources:
+      requests:
+        cpu: 15m
+        memory: 100Mi
+      limits:
+        cpu: 15m
+        memory: 100Mi

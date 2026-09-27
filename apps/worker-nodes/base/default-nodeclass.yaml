@@ -1,0 +1,21 @@
+# Note: not all Karpenter arg options are supported for AKSNodeClass - https://github.com/Azure/karpenter-provider-azure/blob/d0207f537e79d6f3bcf0a5ecaa348714eb57e0cc/pkg/apis/v1beta1/aksnodeclass.go#L93
+# MS ref: https://learn.microsoft.com/en-us/azure/aks/custom-node-configuration?tabs=linux-node-pools#linux-kubelet-custom-configuration
+
+apiVersion: karpenter.azure.com/v1beta1
+kind: AKSNodeClass
+metadata:
+  name: default
+  annotations:
+    kubernetes.io/description: "General purpose node class."
+spec:
+  imageFamily: AzureLinux
+  osDiskSizeGB: 128
+  kubelet:
+    containerLogMaxFiles: 5
+    containerLogMaxSize: 50Mi
+    cpuCFSQuota: true
+    cpuCFSQuotaPeriod: 100ms
+    cpuManagerPolicy: none
+    imageGCHighThresholdPercent: 85
+    imageGCLowThresholdPercent: 80
+    topologyManagerPolicy: none

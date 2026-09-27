@@ -1,0 +1,80 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+  - secret-store.yaml
+  - es-prometheus-msteams-webhook.yaml
+
+patches:
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: prometheus-msteams
+      namespace: mimir
+    patch: |-
+      - op: add
+        path: /spec/template/spec/nodeSelector
+        value:
+          karpenter.sh/capacity-type: on-demand
+  - target:
+      group: batch
+      version: v1
+      kind: Job
+      name: mimir-smoke-test
+      namespace: mimir
+    patch: |-
+      - op: add
+        path: /spec/template/spec/nodeSelector
+        value:
+          karpenter.sh/capacity-type: on-demand
+
+configMapGenerator:
+  - name: external-config
+    options:
+      disableNameSuffixHash: true
+    envs:
+      - config.properties
+
+replacements:
+  # Replace workload identity client_id in ServiceAccount
+  - source:
+      kind: ConfigMap
+      name: external-config
+      fieldPath: data.client_id
+    targets:
+      - select:
+          kind: ServiceAccount
+          name: mimir
+        fieldPaths:
+          - metadata.annotations.[azure.workload.identity/client-id]
+
+  # Replace prometheus-msteams webhook secret name in ExternalSecret
+  - source:
+      kind: ConfigMap
+      name: external-config
+      fieldPath: data.alertmanager_teams_webhook_secret
+    targets:
+      - select:
+          kind: ExternalSecret
+          name: prometheus-msteams-webhook
+        fieldPaths:
+          - spec.data.[secretKey=webhook_url].remoteRef.key
+        options:
+          delimiter: /
+          index: 1
+
+helmGlobals:
+  chartHome: ../../../../charts
+
+helmCharts:
+  - name: mimir-distributed-6.1.0
+    includeCRDs: true
+    version: 6.1.0
+    releaseName: mimir
+    namespace: mimir
+    additionalValuesFiles:
+      - ../../base/values-common.yaml
+      - values-additional.yaml
+      - values-scheduling.yaml

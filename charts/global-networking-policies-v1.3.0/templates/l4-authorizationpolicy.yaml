@@ -1,0 +1,31 @@
+{{- $selectedPolicies := .Values.networkPolicy.egress.policyFromCatalogue | default list }}
+
+{{- range $policyName := $selectedPolicies }}
+
+{{- $cfg := index $.Values.egressCatalogue $policyName }}
+
+{{- if and $cfg $cfg.policies $cfg.policies.l4 $cfg.policies.l4.enabled }}
+
+---
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: {{ $policyName }}-l4
+  namespace: {{ $.Release.Namespace }}
+
+spec:
+  targetRefs:
+    - group: networking.istio.io
+      kind: ServiceEntry
+      name: {{ $policyName }}
+
+  action: {{ $cfg.action | default "ALLOW" }}
+
+  rules:
+    - to:
+        - operation:
+            ports:
+              - "{{ $cfg.port }}"
+
+{{- end }}
+{{- end }}

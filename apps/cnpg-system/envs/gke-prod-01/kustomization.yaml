@@ -1,0 +1,52 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+  - clusterimagecatalog.yaml
+  - ../../plugins/plugin-barman-cloud-v0.11.0.yaml
+
+commonAnnotations:
+  argocd.argoproj.io/sync-options: ServerSideApply=true
+
+patches:
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: barman-cloud
+      namespace: cnpg-system
+    patch: |-
+      - op: add
+        path: /spec/template/spec/nodeSelector
+        value:
+          karpenter.sh/capacity-type: on-demand
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: barman-cloud
+      namespace: cnpg-system
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            cpu: 15m
+            memory: 100Mi
+          limits:
+            cpu: 15m
+            memory: 100Mi
+
+helmGlobals:
+  chartHome: ../../../../charts
+
+helmCharts:
+  - name: cloudnative-pg-0.27.1
+    version: 0.27.1
+    releaseName: cnpg-operator
+    namespace: cnpg-system
+    additionalValuesFiles:
+      - ../../base/values-common.yaml
+      - values-additional.yaml
+

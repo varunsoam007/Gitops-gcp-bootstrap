@@ -1,0 +1,784 @@
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-options: ServerSideApply=true,Replace=true
+  name: platform-auth
+  labels:
+    dashboards: "grafana"
+spec:
+  instanceSelector:
+    matchLabels:
+      dashboards: "grafana"
+  folder: "Platform Components"
+  json: |
+    {
+      "annotations": {
+        "list": [
+          {
+            "builtIn": 1,
+            "datasource": {
+              "type": "grafana",
+              "uid": "-- Grafana --"
+            },
+            "enable": true,
+            "hide": true,
+            "iconColor": "rgba(0, 211, 255, 1)",
+            "name": "Annotations & Alerts",
+            "type": "dashboard"
+          }
+        ]
+      },
+      "description": "Platform Auth (oauth2-proxy) — service health, traffic, error rates, and latency. Uses stable 5m windows to avoid no-data on low-traffic periods.",
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 0,
+      "links": [],
+      "panels": [
+        {
+          "id": 1,
+          "type": "stat",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 4,
+            "x": 0,
+            "y": 0
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "none",
+              "decimals": 0,
+              "mappings": [
+                {
+                  "options": {
+                    "0": {
+                      "text": "Down",
+                      "color": "red"
+                    },
+                    "1": {
+                      "text": "Up",
+                      "color": "green"
+                    }
+                  },
+                  "type": "value"
+                }
+              ],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "red", "value": 0 },
+                  { "color": "green", "value": 1 }
+                ]
+              },
+              "color": {
+                "mode": "thresholds"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "showPercentChange": false,
+            "showThresholdLabels": false,
+            "showThresholdMarkers": false,
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "percentChangeColorMode": "standard",
+            "textMode": "value",
+            "colorMode": "background",
+            "graphMode": "none",
+            "wideLayout": true
+          },
+          "pluginVersion": "12.3.0",
+          "targets": [
+            {
+              "datasource": "${datasource}",
+              "expr": "min(up{namespace=\"platform-auth\", job=~\".*platform-auth.*\"})",
+              "refId": "A"
+            }
+          ],
+          "title": "Service Status",
+          "description": "Whether all oauth2-proxy targets are up and being scraped"
+        },
+        {
+          "id": 2,
+          "type": "stat",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 4,
+            "x": 4,
+            "y": 0
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "none",
+              "decimals": 0,
+              "mappings": [
+                {
+                  "options": {
+                    "0": {
+                      "text": "None",
+                      "color": "red"
+                    }
+                  },
+                  "type": "value"
+                }
+              ],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "red", "value": 0 },
+                  { "color": "green", "value": 1 }
+                ]
+              },
+              "color": {
+                "mode": "thresholds"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "showPercentChange": false,
+            "showThresholdLabels": false,
+            "showThresholdMarkers": false,
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "percentChangeColorMode": "standard",
+            "textMode": "value",
+            "colorMode": "background",
+            "graphMode": "none",
+            "wideLayout": true
+          },
+          "pluginVersion": "12.3.0",
+          "targets": [
+            {
+              "datasource": "${datasource}",
+              "expr": "count(up{namespace=\"platform-auth\", job=~\".*platform-auth.*\"})",
+              "refId": "A"
+            }
+          ],
+          "title": "Pods Scraped",
+          "description": "Number of oauth2-proxy pods being scraped for metrics"
+        },
+        {
+          "id": 3,
+          "type": "stat",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 4,
+            "x": 8,
+            "y": 0
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "decimals": 3,
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": 0 },
+                  { "color": "orange", "value": 0.5 },
+                  { "color": "red", "value": 2 }
+                ]
+              },
+              "color": {
+                "mode": "thresholds"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "showPercentChange": false,
+            "showThresholdLabels": false,
+            "showThresholdMarkers": false,
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "percentChangeColorMode": "standard",
+            "textMode": "value",
+            "colorMode": "background",
+            "graphMode": "none",
+            "wideLayout": true
+          },
+          "pluginVersion": "12.3.0",
+          "targets": [
+            {
+              "datasource": "${datasource}",
+              "expr": "sum(rate(oauth2_proxy_response_duration_seconds_sum{namespace=\"platform-auth\"}[5m])) / clamp_min(sum(rate(oauth2_proxy_response_duration_seconds_count{namespace=\"platform-auth\"}[5m])), 1e-9)",
+              "refId": "A"
+            }
+          ],
+          "title": "Avg Response (5m)",
+          "description": "Rolling 5m average oauth2-proxy response duration"
+        },
+        {
+          "id": 6,
+          "type": "stat",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 4,
+            "x": 12,
+            "y": 0
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "reqps",
+              "decimals": 2,
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": 0 },
+                  { "color": "orange", "value": 1 },
+                  { "color": "red", "value": 5 }
+                ]
+              },
+              "color": {
+                "mode": "thresholds"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "showPercentChange": false,
+            "showThresholdLabels": false,
+            "showThresholdMarkers": false,
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "percentChangeColorMode": "standard",
+            "textMode": "value",
+            "colorMode": "background",
+            "graphMode": "none",
+            "wideLayout": true
+          },
+          "pluginVersion": "12.3.0",
+          "targets": [
+            {
+              "datasource": "${datasource}",
+              "expr": "sum(increase(oauth2_proxy_requests_total{namespace=\"platform-auth\"}[5m])) / 300",
+              "refId": "A"
+            }
+          ],
+          "title": "Traffic (5m avg)",
+          "description": "Average requests per second over a 5-minute window"
+        },
+        {
+          "id": 7,
+          "type": "stat",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 4,
+            "x": 16,
+            "y": 0
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percentunit",
+              "decimals": 2,
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": 0 },
+                  { "color": "orange", "value": 0.01 },
+                  { "color": "red", "value": 0.05 }
+                ]
+              },
+              "color": {
+                "mode": "thresholds"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "showPercentChange": false,
+            "showThresholdLabels": false,
+            "showThresholdMarkers": false,
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "percentChangeColorMode": "standard",
+            "textMode": "value",
+            "colorMode": "background",
+            "graphMode": "none",
+            "wideLayout": true
+          },
+          "pluginVersion": "12.3.0",
+          "targets": [
+            {
+              "datasource": "${datasource}",
+              "expr": "((sum(increase(oauth2_proxy_requests_total{namespace=\"platform-auth\",code=~\"4..|5..\"}[5m])) or vector(0)) / clamp_min(sum(increase(oauth2_proxy_requests_total{namespace=\"platform-auth\"}[5m])), 1))",
+              "refId": "A"
+            }
+          ],
+          "title": "Error Rate (5m)",
+          "description": "4xx+5xx share of requests over the last 5 minutes"
+        },
+        {
+          "id": 8,
+          "type": "stat",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 4,
+            "x": 20,
+            "y": 0
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "none",
+              "decimals": 0,
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": 0 },
+                  { "color": "orange", "value": 10 },
+                  { "color": "red", "value": 25 }
+                ]
+              },
+              "color": {
+                "mode": "thresholds"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "showPercentChange": false,
+            "showThresholdLabels": false,
+            "showThresholdMarkers": false,
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "percentChangeColorMode": "standard",
+            "textMode": "value",
+            "colorMode": "background",
+            "graphMode": "none",
+            "wideLayout": true
+          },
+          "pluginVersion": "12.3.0",
+          "targets": [
+            {
+              "datasource": "${datasource}",
+              "expr": "sum(oauth2_proxy_requests_in_flight{namespace=\"platform-auth\"})",
+              "refId": "A"
+            }
+          ],
+          "title": "In-Flight Requests",
+          "description": "Current number of requests being processed"
+        },
+        {
+          "id": 4,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "description": "Requests by HTTP status code. 2xx = authenticated, 3xx = redirect to login, 4xx/5xx = errors.",
+          "fieldConfig": {
+            "defaults": {
+              "decimals": 2,
+              "unit": "reqps",
+              "color": {
+                "mode": "thresholds"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "Requests / sec",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": { "id": "byRegexp", "options": "2.." },
+                "properties": [{ "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }]
+              },
+              {
+                "matcher": { "id": "byRegexp", "options": "3.." },
+                "properties": [{ "id": "color", "value": { "fixedColor": "blue", "mode": "fixed" } }]
+              },
+              {
+                "matcher": { "id": "byRegexp", "options": "4.." },
+                "properties": [{ "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } }]
+              },
+              {
+                "matcher": { "id": "byRegexp", "options": "5.." },
+                "properties": [{ "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 4
+          },
+          "options": {
+            "legend": {
+              "calcs": ["lastNotNull", "mean", "max"],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "12.3.0",
+          "targets": [
+            {
+              "datasource": "${datasource}",
+              "expr": "sum by (code) (increase(oauth2_proxy_requests_total{namespace=\"platform-auth\"}[5m])) / 300",
+              "legendFormat": "HTTP {{ code }}",
+              "refId": "A"
+            }
+          ],
+          "title": "Auth Requests / sec by Status Code",
+          "type": "timeseries"
+        },
+        {
+          "id": 5,
+          "description": "Latency with stable 5m windows for sparse traffic periods.",
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "decimals": 3,
+              "color": {
+                "mode": "thresholds"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "Latency",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "orange",
+                    "value": 0.5
+                  },
+                  {
+                    "color": "red",
+                    "value": 2
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 12
+          },
+          "options": {
+            "legend": {
+              "calcs": ["lastNotNull", "mean", "max"],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "12.3.0",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "targets": [
+            {
+              "datasource": "${datasource}",
+              "expr": "sum(rate(oauth2_proxy_response_duration_seconds_sum{namespace=\"platform-auth\"}[5m])) / clamp_min(sum(rate(oauth2_proxy_response_duration_seconds_count{namespace=\"platform-auth\"}[5m])), 1e-9)",
+              "legendFormat": "avg",
+              "refId": "A"
+            },
+            {
+              "datasource": "${datasource}",
+              "expr": "histogram_quantile(0.95, sum by (le) (rate(oauth2_proxy_response_duration_seconds_bucket{namespace=\"platform-auth\"}[5m]))) unless (sum(rate(oauth2_proxy_response_duration_seconds_count{namespace=\"platform-auth\"}[5m])) == 0)",
+              "legendFormat": "p95",
+              "refId": "B"
+            }
+          ],
+          "title": "Response Latency (avg / p95)",
+          "type": "timeseries"
+        },
+        {
+          "id": 9,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "description": "Share of request outcomes over rolling 5-minute windows.",
+          "fieldConfig": {
+            "defaults": {
+              "decimals": 2,
+              "unit": "percentunit",
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "Share",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 16,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "normal"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 12
+          },
+          "options": {
+            "legend": {
+              "calcs": ["lastNotNull", "mean"],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "12.3.0",
+          "targets": [
+            {
+              "datasource": "${datasource}",
+              "expr": "((sum(increase(oauth2_proxy_requests_total{namespace=\"platform-auth\",code=~\"2..\"}[5m])) or vector(0)) / clamp_min(sum(increase(oauth2_proxy_requests_total{namespace=\"platform-auth\"}[5m])), 1))",
+              "legendFormat": "2xx",
+              "refId": "A"
+            },
+            {
+              "datasource": "${datasource}",
+              "expr": "((sum(increase(oauth2_proxy_requests_total{namespace=\"platform-auth\",code=~\"3..\"}[5m])) or vector(0)) / clamp_min(sum(increase(oauth2_proxy_requests_total{namespace=\"platform-auth\"}[5m])), 1))",
+              "legendFormat": "3xx",
+              "refId": "B"
+            },
+            {
+              "datasource": "${datasource}",
+              "expr": "((sum(increase(oauth2_proxy_requests_total{namespace=\"platform-auth\",code=~\"4..\"}[5m])) or vector(0)) / clamp_min(sum(increase(oauth2_proxy_requests_total{namespace=\"platform-auth\"}[5m])), 1))",
+              "legendFormat": "4xx",
+              "refId": "C"
+            },
+            {
+              "datasource": "${datasource}",
+              "expr": "((sum(increase(oauth2_proxy_requests_total{namespace=\"platform-auth\",code=~\"5..\"}[5m])) or vector(0)) / clamp_min(sum(increase(oauth2_proxy_requests_total{namespace=\"platform-auth\"}[5m])), 1))",
+              "legendFormat": "5xx",
+              "refId": "D"
+            }
+          ],
+          "title": "Outcome Mix (5m share %)",
+          "type": "timeseries"
+        }
+      ],
+      "preload": false,
+      "refresh": "10s",
+      "schemaVersion": 41,
+      "tags": [
+        "platform-auth",
+        "oauth2-proxy",
+        "authentication"
+      ],
+      "templating": {
+        "list": [
+          {
+            "current": {
+              "text": "Mimir",
+              "value": "mimir"
+            },
+            "name": "datasource",
+            "options": [],
+            "query": "prometheus",
+            "refresh": 1,
+            "type": "datasource"
+          }
+        ]
+      },
+      "time": {
+        "from": "now-5m",
+        "to": "now"
+      },
+      "timepicker": {},
+      "timezone": "browser",
+      "title": "Platform Auth — oauth2-proxy",
+      "uid": "platform-auth-oauth2-proxy",
+      "version": 3
+    }

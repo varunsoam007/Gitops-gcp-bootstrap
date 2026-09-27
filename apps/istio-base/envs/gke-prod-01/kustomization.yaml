@@ -1,0 +1,14 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+helmGlobals:
+  chartHome: ../../../../charts
+
+helmCharts:
+  - name: istio-base-1.29.1
+    version: 1.29.1
+    releaseName: istio-base
+    namespace: istio-system

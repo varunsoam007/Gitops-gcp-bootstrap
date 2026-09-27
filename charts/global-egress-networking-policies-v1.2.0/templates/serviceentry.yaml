@@ -1,0 +1,84 @@
+{{- $networkPolicy := .Values.networkPolicy | default dict }}
+{{- $egressPolicy := get $networkPolicy "egress" | default dict }}
+{{- $selectedPolicies := get $egressPolicy "policyFromCatalogue" | default list }}
+{{- $catalogue := .Values.egressCatalogue | default dict }}
+
+{{- range $policyName := $selectedPolicies }}
+{{- if not (hasKey $catalogue $policyName) }}
+{{- fail (printf "egressCatalogue entry %q not found" $policyName) }}
+{{- end }}
+{{- $cfg := index $catalogue $policyName }}
+{{- if not $cfg.hosts }}
+{{- fail (printf "egressCatalogue.%s.hosts is required" $policyName) }}
+{{- end }}
+
+{{- $location := default "MESH_EXTERNAL" $cfg.location }}
+{{- $resolution := default "" $cfg.resolution }}
+
+{{- if eq $resolution "" }}
+  {{- range $cfg.hosts }}
+    {{- if contains "*" . }}
+      {{- $resolution = "NONE" }}
+    {{- end }}
+  {{- end }}
+  {{- if eq $resolution "" }}
+    {{- $resolution = "DNS" }}
+  {{- end }}
+{{- end }}
+
+---
+apiVersion: networking.istio.io/v1
+kind: ServiceEntry
+metadata:
+  name: {{ $policyName }}
+  namespace: {{ $.Release.Namespace }}
+
+spec:
+  hosts:
+{{- range $cfg.hosts }}
+    - {{ . | quote }}
+{{- end }}
+{{- if $cfg.addresses }}
+  addresses:
+{{- toYaml $cfg.addresses | nindent 4 }}
+{{- end }}
+
+{{- if $cfg.exportTo }}
+  exportTo:
+{{- toYaml $cfg.exportTo | nindent 4 }}
+{{- else }}
+  exportTo:
+    - "."
+{{- end }}
+
+  location: {{ $location }}
+  resolution: {{ $resolution }}
+
+  ports:
+{{- if $cfg.ports }}
+{{- range $port := $cfg.ports }}
+    - number: {{ $port.number }}
+      name: {{ $port.name }}
+      protocol: {{ $port.protocol }}
+{{- if $port.targetPort }}
+      targetPort: {{ $port.targetPort }}
+{{- end }}
+{{- end }}
+{{- else }}
+    - number: {{ $cfg.port }}
+      name: {{ $cfg.portName }}
+      protocol: {{ $cfg.protocol }}
+{{- end }}
+{{- if $cfg.endpoints }}
+  endpoints:
+{{- toYaml $cfg.endpoints | nindent 4 }}
+{{- end }}
+{{- if $cfg.workloadSelector }}
+  workloadSelector:
+{{- toYaml $cfg.workloadSelector | nindent 4 }}
+{{- end }}
+{{- if $cfg.subjectAltNames }}
+  subjectAltNames:
+{{- toYaml $cfg.subjectAltNames | nindent 4 }}
+{{- end }}
+{{- end }}

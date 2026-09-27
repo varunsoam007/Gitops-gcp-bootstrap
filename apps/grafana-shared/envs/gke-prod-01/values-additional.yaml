@@ -1,0 +1,7 @@
+# Grafana is deployed via Grafana Operator CR (grafana.yaml), not Helm.
+# Pod scheduling configuration (nodeSelector, priorityClassName) is in grafana.yaml
+tolerations:
+  - effect: NoSchedule
+    key: kubernetes.azure.com/scalesetpriority
+    operator: Equal
+    value: spot
