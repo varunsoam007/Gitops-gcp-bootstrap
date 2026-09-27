@@ -3,51 +3,7 @@ kind: Kustomization
 
 resources:
   - ../../base
-  - azure-config.yaml
-
-configMapGenerator:
-  - name: external-config
-    options:
-      disableNameSuffixHash: true
-    envs:
-      - config.properties
-
-replacements:
-  # Replace workload identity client_id in ServiceAccount
-  - source:
-      kind: ConfigMap
-      name: external-config
-      fieldPath: data.client_id
-    targets:
-      - select:
-          kind: ServiceAccount
-          name: tempo
-        fieldPaths:
-          - metadata.annotations.[azure.workload.identity/client-id]
-
-  # Populate the dedicated Azure storage ConfigMap (scalar fields only)
-  - source:
-      kind: ConfigMap
-      name: external-config
-      fieldPath: data.storage_account_name
-    targets:
-      - select:
-          kind: ConfigMap
-          name: tempo-azure-config
-        fieldPaths:
-          - data.storage_account_name
-
-  - source:
-      kind: ConfigMap
-      name: external-config
-      fieldPath: data.traces_container_name
-    targets:
-      - select:
-          kind: ConfigMap
-          name: tempo-azure-config
-        fieldPaths:
-          - data.traces_container_name
-
+  - gcs-config.yaml
 
 helmGlobals:
   chartHome: ../../../../charts

@@ -3,35 +3,27 @@
 
 global:
   priorityClassName: observability-critical
-  podLabels:
-    azure.workload.identity/use: "true"
-  # Enable ${ENV_VAR} expansion in Tempo config for Azure storage settings.
+  # Enable ${ENV_VAR} expansion in Tempo config for GCS storage settings.
   # NOTE: the chart also applies global.extraArgs to memcached, which breaks it
   # (parsed as `-c` connection limit). The memcached StatefulSet strips these args
   # via a Kustomize patch in each env's kustomization.yaml.
   extraArgs:
     - -config.expand-env=true
   extraEnv:
-    - name: TEMPO_STORAGE_ACCOUNT
+    - name: TEMPO_GCS_BUCKET
       valueFrom:
         configMapKeyRef:
-          name: tempo-azure-config
-          key: storage_account_name
-    - name: TEMPO_TRACES_CONTAINER
-      valueFrom:
-        configMapKeyRef:
-          name: tempo-azure-config
-          key: traces_container_name
+          name: tempo-gcs-config
+          key: traces_bucket_name
   image:
-    registry: docker.io   #
+    registry: docker.io
 
 serviceAccount:
   create: true
   name: tempo
   automountServiceAccountToken: true
   annotations:
-    # Placeholder - replaced by Kustomize from config.properties
-    azure.workload.identity/client-id: placeholder
+    iam.gke.io/gcp-service-account: tempo@project-c487c7e3-8780-4424-9ad.iam.gserviceaccount.com
 
 reportingEnabled: false
 multitenancyEnabled: false
@@ -41,11 +33,9 @@ minio:
 
 storage:
   trace:
-    backend: azure
-    azure:
-      storage_account_name: "${TEMPO_STORAGE_ACCOUNT}"
-      container_name: "${TEMPO_TRACES_CONTAINER}"
-      use_federated_token: true
+    backend: gcs
+    gcs:
+      bucket_name: "${TEMPO_GCS_BUCKET}"
 
 traces:
   otlp:
@@ -61,8 +51,7 @@ metaMonitoring:
 memcached:
   enabled: true
   image:
-    # ACR mirrors the official image under library/memcached.
-    repository: library/memcached
+    repository: memcached
 
 # Keep gateway disabled in devm baseline; query via query-frontend service.
 gateway:
