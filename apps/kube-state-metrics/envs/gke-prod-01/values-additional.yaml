@@ -3,7 +3,7 @@
 
 # Private ACR for images
 image:
-  registry: docker.io
+  registry: registry.k8s.io
   repository: kube-state-metrics/kube-state-metrics
 
 # Enable ServiceMonitor for Alloy discovery

@@ -1,12 +1,6 @@
 # Shared Trivy Operator configuration for all environments
 # Environment-specific overrides go in envs/<env>/values-additional.yaml
 
-tolerations:
-  - effect: NoSchedule
-    key: kubernetes.azure.com/scalesetpriority
-    operator: Equal
-    value: linux
-
 # Prefer linux nodes for operator pod to reduce costs
 affinity:
   nodeAffinity:
@@ -21,8 +15,8 @@ affinity:
 
 # Use thirdparty ACR cache for all images
 image:
-  registry: docker.io
-  repository: aquasec/trivy-operator
+  registry: ghcr.io
+  repository: aquasecurity/trivy-operator
 
 operator:
   builtInTrivyServer: true
@@ -32,13 +26,13 @@ operator:
   metricsConfigAuditInfo: true  # Enable detailed config audit check metrics
   # Pod labels for workload identity
   podLabels:
-    azure.workload.identity/use: "true"
+    iam.gke.io/use: "true"
 
 trivy:
   # Use thirdparty ACR for trivy scanner image
   image:
-    registry: docker.io
-    repository: aquasec/trivy
+    registry: ghcr.io
+    repository: aquasecurity/trivy
     tag: "0.69.3"
   ignoreUnfixed: true
   severity: HIGH,CRITICAL
@@ -136,8 +130,8 @@ trivyOperator:
   # See: https://github.com/aquasecurity/trivy-operator/issues/2659
   scanJobCompressLogs: false
   # Exclude AKS system images that can't be scanned (Windows images, MCR authentication issues)
-  excludeImages: "mcr.microsoft.com/oss/kubernetes-csi/azuredisk-csi:*,mcr.microsoft.com/oss/kubernetes-csi/azurefile-csi:*,mcr.microsoft.com/oss/kubernetes-csi/csi-node-driver-registrar:*,mcr.microsoft.com/oss/kubernetes-csi/livenessprobe:*,mcr.microsoft.com/aks/*,mcr.microsoft.com/azuremonitor/*,mcr.microsoft.com/oss/kubernetes/azure-cloud-node-manager:*,mcr.microsoft.com/oss/kubernetes/azure-cloud-controller-manager:*"
-  scanJobPodTemplateLabels: "azure.workload.identity/use=true"
+  excludeImages: ""
+  scanJobPodTemplateLabels: ""
   scanJobServiceAccount: trivy-operator
   scanJobAutomountServiceAccountToken: true
   # Prefer linux nodes for scan jobs to reduce costs, but allow fallback to linux

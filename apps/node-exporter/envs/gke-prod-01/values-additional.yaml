@@ -6,7 +6,7 @@ fullnameOverride: node-exporter
 
 # Private ACR for images
 image:
-  registry: docker.io
+  registry: quay.io
   repository: prometheus/node-exporter
 
 # Enable ServiceMonitor for Alloy discovery

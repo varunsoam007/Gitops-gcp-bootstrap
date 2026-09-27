@@ -2,8 +2,8 @@
 
 # ACR third-party image
 image:
-  registry: docker.io
-  repository: grafana-operator
+  registry: ghcr.io
+  repository: grafana-operator/grafana-operator
 
 # Leader election is usually enabled by default in controller-runtime based operators,
 # allowing us to run multiple replicas safely.

@@ -2,9 +2,9 @@
 opencost:
   exporter:
     image:
-      registry: docker.io
+      registry: ghcr.io
       repository: opencost/opencost
   ui:
     image:
-      registry: docker.io
+      registry: ghcr.io
       repository: opencost/opencost-ui

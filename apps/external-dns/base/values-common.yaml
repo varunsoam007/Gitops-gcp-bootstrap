@@ -2,7 +2,7 @@
 
 # ACR third-party image
 image:
-  repository: docker.io/external-dns/external-dns
+  repository: registry.k8s.io/external-dns/external-dns
 
 replicaCount: 2
 

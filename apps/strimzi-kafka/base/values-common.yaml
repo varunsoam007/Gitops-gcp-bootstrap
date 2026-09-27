@@ -6,5 +6,5 @@ watchNamespaces:
   - strimzi-kafka
 
 # Use the private third-party ACR pull-through cache.
-defaultImageRegistry: docker.io
+defaultImageRegistry: quay.io
 defaultImageRepository: strimzi

@@ -2,7 +2,7 @@
 
 # ACR third-party images
 image:
-  repository: docker.io/jetstack/cert-manager-controller
+  repository: quay.io/jetstack/cert-manager-controller
 
 replicaCount: 2
 
@@ -15,7 +15,7 @@ resources:
 
 webhook:
   image:
-    repository: docker.io/jetstack/cert-manager-webhook
+    repository: quay.io/jetstack/cert-manager-webhook
   replicaCount: 2
   resources:
     requests:
@@ -26,7 +26,7 @@ webhook:
 
 cainjector:
   image:
-    repository: docker.io/jetstack/cert-manager-cainjector
+    repository: quay.io/jetstack/cert-manager-cainjector
   replicaCount: 2
   resources:
     requests:
@@ -37,11 +37,11 @@ cainjector:
 
 acmesolver:
   image:
-    repository: docker.io/jetstack/cert-manager-acmesolver
+    repository: quay.io/jetstack/cert-manager-acmesolver
 
 startupapicheck:
   image:
-    repository: docker.io/jetstack/cert-manager-startupapicheck
+    repository: quay.io/jetstack/cert-manager-startupapicheck
 
 # Expose cert-manager metrics via PodMonitor for Alloy discovery
 # Alloy's prometheus.operator.podmonitors picks these up automatically
