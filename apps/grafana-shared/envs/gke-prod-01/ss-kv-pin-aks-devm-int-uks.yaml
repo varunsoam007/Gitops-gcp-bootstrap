@@ -9,8 +9,6 @@ spec:
   provider:
     gcpsm:
       projectID: project-c487c7e3-8780-4424-9ad
-      serviceAccountRef:
-        name: grafana-sa
 
 # ---
 # apiVersion: v1
@@ -19,11 +17,6 @@ spec:
 #   name: grafana-sa
 #   namespace: grafana-shared
 #   annotations:
-#     azure.workload.identity/client-id: placeholder
-#     kubernetes.io/enforce-mountable-secrets: "true"
+#     iam.gke.io/gcp-service-account: grafana-shared@project-c487c7e3-8780-4424-9ad.iam.gserviceaccount.com
 #     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
 #     argocd.argoproj.io/sync-wave: "-2"
-
-# secrets:
-#   - name: grafana-shared-user-secret
-

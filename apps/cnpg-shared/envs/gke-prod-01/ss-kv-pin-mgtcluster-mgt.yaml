@@ -9,5 +9,3 @@ spec:
   provider:
     gcpsm:
       projectID: project-c487c7e3-8780-4424-9ad
-      serviceAccountRef:
-        name: cnpg-shared
