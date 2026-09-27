@@ -65,7 +65,7 @@ ingester:
                   - linux
   persistence:
     enabled: true
-    storageClass: managed
+    storageClass: standard-rwo
     size: 30Gi
   resources:
     requests:
@@ -129,7 +129,7 @@ indexGateway:
     kubernetes.io/os: linux
   persistence:
     enabled: true
-    storageClass: managed
+    storageClass: standard-rwo
     size: 20Gi
   resources:
     requests:
