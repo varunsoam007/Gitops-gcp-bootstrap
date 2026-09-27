@@ -1,5 +1,5 @@
 nodeSelector:
-  karpenter.sh/capacity-type: on-demand
+  kubernetes.io/os: linux
 
 resources:
   requests:

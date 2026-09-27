@@ -7,5 +7,5 @@ commonAnnotations:
 
 resources:
   - ../../base
-  - generic-on-demand-nodepool.yaml
-  - generic-spot-nodepool.yaml
+  - generic-linux-nodepool.yaml
+  - generic-linux-nodepool.yaml

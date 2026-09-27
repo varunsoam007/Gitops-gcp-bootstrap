@@ -13,7 +13,7 @@ resources:
     memory: 938Mi
 
 nodeSelector:
-  karpenter.sh/capacity-type: on-demand
+  kubernetes.io/os: linux
 
 tolerations: []
 
@@ -21,10 +21,10 @@ affinity:
   nodeAffinity:
     preferredDuringSchedulingIgnoredDuringExecution: []
 
-# Run scanner and node-collector jobs on on-demand nodes only.
+# Run scanner and node-collector jobs on linux nodes only.
 trivyOperator:
   scanJobNodeSelector:
-    karpenter.sh/capacity-type: on-demand
+    kubernetes.io/os: linux
   scanJobAffinity:
     nodeAffinity:
       preferredDuringSchedulingIgnoredDuringExecution: []

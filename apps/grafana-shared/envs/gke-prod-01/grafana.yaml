@@ -28,7 +28,7 @@ spec:
         spec:
           priorityClassName: observability-critical
           nodeSelector:
-            karpenter.sh/capacity-type: on-demand
+            kubernetes.io/os: linux
           # Init container to load plugins from ACR using oras
           # The plugin is stored as an OCI artifact (not a container image)
           # Uses Azure Workload Identity to authenticate to ACR

@@ -11,7 +11,7 @@ spec:
       azure.workload.identity/use: "true"
   affinity:
     nodeSelector:
-      karpenter.sh/capacity-type: on-demand
+      kubernetes.io/os: linux
       topology.kubernetes.io/zone: uksouth-2
     podAntiAffinityType: required
   # Resource limits to protect pods from OOM and ensure scheduling

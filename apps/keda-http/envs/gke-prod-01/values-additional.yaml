@@ -10,7 +10,7 @@ images:
 operator:
   replicas: 1
   nodeSelector:
-    karpenter.sh/capacity-type: on-demand
+    kubernetes.io/os: linux
     resources:
       requests:
         cpu: 15m
@@ -22,7 +22,7 @@ operator:
 scaler:
   replicas: 1
   nodeSelector:
-    karpenter.sh/capacity-type: on-demand
+    kubernetes.io/os: linux
     resources:
       requests:
         cpu: 15m
@@ -39,7 +39,7 @@ interceptor:
   pdb:
     enabled: false
   nodeSelector:
-    karpenter.sh/capacity-type: on-demand
+    kubernetes.io/os: linux
     resources:
       requests:
         cpu: 15m

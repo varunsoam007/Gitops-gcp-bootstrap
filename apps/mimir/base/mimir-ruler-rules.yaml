@@ -657,24 +657,24 @@ data:
               summary: "Karpenter controller down"
               description: "Karpenter is not running - no new nodes can be provisioned and no disruptions will happen."
 
-  # --- Spot Node Evictions ---
-  spot-evictions.yaml: |
+  # --- linux Node Evictions ---
+  linux-evictions.yaml: |
     groups:
-      - name: spot-evictions
+      - name: linux-evictions
         rules:
-          - alert: SpotNodeEvicted
+          - alert: linuxNodeEvicted
             expr: |
               (
                 max by (cluster, node) (kube_node_status_condition{condition="Ready", status="true"}) == 0
               )
               * on (cluster, node) group_left()
-              max by (cluster, node) (kube_node_labels{label_karpenter_sh_nodepool=~".+spot.*"})
+              max by (cluster, node) (kube_node_labels{label_karpenter_sh_nodepool=~".+linux.*"})
             for: 2m
             labels:
               severity: critical
             annotations:
-              summary: "Spot node {{ $labels.node }} evicted ({{ $labels.cluster }})"
-              description: "Spot node {{ $labels.node }} has been evicted and is NotReady. All pods scheduled on this node have been terminated and will be rescheduled. Check the DeploymentFullyDown / DeploymentDegraded alerts for affected workloads."
+              summary: "linux node {{ $labels.node }} evicted ({{ $labels.cluster }})"
+              description: "linux node {{ $labels.node }} has been evicted and is NotReady. All pods scheduled on this node have been terminated and will be rescheduled. Check the DeploymentFullyDown / DeploymentDegraded alerts for affected workloads."
 
           - alert: DeploymentFullyDown
             expr: |
@@ -694,7 +694,7 @@ data:
               severity: critical
             annotations:
               summary: "{{ $labels.exported_namespace }}/{{ $labels.deployment }} fully down ({{ $labels.cluster }})"
-              description: "{{ $labels.exported_namespace }}/{{ $labels.deployment }} has 0 available replicas — service is completely down. Desired replica count is > 0. Likely caused by spot node eviction."
+              description: "{{ $labels.exported_namespace }}/{{ $labels.deployment }} has 0 available replicas — service is completely down. Desired replica count is > 0. Likely caused by linux node eviction."
 
           - alert: DeploymentDegraded
             expr: |
@@ -712,7 +712,7 @@ data:
               severity: warning
             annotations:
               summary: "{{ $labels.exported_namespace }}/{{ $labels.deployment }} degraded ({{ $labels.cluster }})"
-              description: "{{ $labels.exported_namespace }}/{{ $labels.deployment }} has {{ $value | humanize }} available replicas — fewer than desired. Partial outage. May be caused by spot node eviction."
+              description: "{{ $labels.exported_namespace }}/{{ $labels.deployment }} has {{ $value | humanize }} available replicas — fewer than desired. Partial outage. May be caused by linux node eviction."
           - alert: EvictedPodsNotCleaned
             expr: |
               sum by (cluster, exported_namespace) (

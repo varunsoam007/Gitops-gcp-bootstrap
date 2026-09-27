@@ -1,7 +1,7 @@
 # Note: not all Karpenter arg options are supported for AKSNodeClass - https://github.com/Azure/karpenter-provider-azure/blob/d0207f537e79d6f3bcf0a5ecaa348714eb57e0cc/pkg/apis/v1beta1/aksnodeclass.go#L93
 # MS ref: https://learn.microsoft.com/en-us/azure/aks/custom-node-configuration?tabs=linux-node-pools#linux-kubelet-custom-configuration
 
-apiVersion: karpenter.azure.com/v1beta1
+apiVersion: 
 kind: AKSNodeClass
 metadata:
   name: default

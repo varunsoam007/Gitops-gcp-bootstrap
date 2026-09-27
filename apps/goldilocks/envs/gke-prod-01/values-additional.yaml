@@ -12,7 +12,7 @@ vpa:
   recommender:
     enabled: true
     nodeSelector:
-      karpenter.sh/capacity-type: on-demand
+      kubernetes.io/os: linux
     resources:
       requests:
         cpu: 15m
@@ -29,7 +29,7 @@ metrics-server:
 controller:
   enabled: true
   nodeSelector:
-    karpenter.sh/capacity-type: on-demand
+    kubernetes.io/os: linux
   flags:
     on-by-default: "true"
   resources:
@@ -44,7 +44,7 @@ controller:
 dashboard:
   enabled: true
   nodeSelector:
-    karpenter.sh/capacity-type: on-demand
+    kubernetes.io/os: linux
   replicaCount: 1
   flags:
     on-by-default: "true"

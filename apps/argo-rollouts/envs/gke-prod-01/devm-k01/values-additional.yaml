@@ -16,7 +16,7 @@ dashboard:
       cpu: 15m
       memory: 100Mi
   nodeSelector:
-    karpenter.sh/capacity-type: on-demand
+    kubernetes.io/os: linux
 
 providerRBAC:
   enabled: false
@@ -37,4 +37,4 @@ controller:
       cpu: 15m
       memory: 100Mi
   nodeSelector:
-    karpenter.sh/capacity-type: on-demand
+    kubernetes.io/os: linux

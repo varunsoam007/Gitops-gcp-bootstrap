@@ -11,7 +11,7 @@ resources:
     memory: 100Mi
 
 nodeSelector:
-  karpenter.sh/capacity-type: on-demand
+  kubernetes.io/os: linux
 
 certController:
   resources:
@@ -22,7 +22,7 @@ certController:
       cpu: 15m
       memory: 100Mi
   nodeSelector:
-    karpenter.sh/capacity-type: on-demand
+    kubernetes.io/os: linux
 
 webhook:
   resources:
@@ -33,7 +33,7 @@ webhook:
       cpu: 15m
       memory: 100Mi
   nodeSelector:
-    karpenter.sh/capacity-type: on-demand
+    kubernetes.io/os: linux
 
 podLabels:
   azure.workload.identity/use: "true"

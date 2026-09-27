@@ -3,7 +3,7 @@ kind: Kustomization
 
 resources:
   # ARM64 NodePools (preferred for cost savings)
-  - arm64-spot-nodepool.yaml
-  - arm64-on-demand-nodepool.yaml
+  - arm64-linux-nodepool.yaml
+  - arm64-linux-nodepool.yaml
   # Node class
   - default-nodeclass.yaml

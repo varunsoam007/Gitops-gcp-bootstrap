@@ -191,12 +191,12 @@ spec:
           "pluginVersion": "10.0.0",
           "targets": [
             {
-              "expr": "count(count by (node) (kubecost_node_is_spot == 1))",
-              "legendFormat": "Spot Nodes",
+              "expr": "count(count by (node) (kubecost_node_is_linux == 1))",
+              "legendFormat": "linux Nodes",
               "refId": "A"
             }
           ],
-          "title": "Spot Nodes",
+          "title": "linux Nodes",
           "type": "stat"
         },
         {
@@ -232,12 +232,12 @@ spec:
           "pluginVersion": "10.0.0",
           "targets": [
             {
-              "expr": "count(count by (node) (kubecost_node_is_spot == 0)) or vector(0)",
-              "legendFormat": "On-Demand Nodes",
+              "expr": "count(count by (node) (kubecost_node_is_linux == 0)) or vector(0)",
+              "legendFormat": "linux Nodes",
               "refId": "A"
             }
           ],
-          "title": "On-Demand Nodes",
+          "title": "linux Nodes",
           "type": "stat"
         },
         {
@@ -431,7 +431,7 @@ spec:
             },
             "overrides": [
               {
-                "matcher": { "id": "byName", "options": "Spot" },
+                "matcher": { "id": "byName", "options": "linux" },
                 "properties": [
                   {
                     "id": "custom.cellOptions",
@@ -443,8 +443,8 @@ spec:
                   {
                     "id": "mappings",
                     "value": [
-                      { "options": { "0": { "color": "orange", "index": 0, "text": "On-Demand" } }, "type": "value" },
-                      { "options": { "1": { "color": "green", "index": 1, "text": "Spot" } }, "type": "value" }
+                      { "options": { "0": { "color": "orange", "index": 0, "text": "linux" } }, "type": "value" },
+                      { "options": { "1": { "color": "green", "index": 1, "text": "linux" } }, "type": "value" }
                     ]
                   },
                   { "id": "unit", "value": "short" }
@@ -488,7 +488,7 @@ spec:
               "refId": "A"
             },
             {
-              "expr": "kubecost_node_is_spot",
+              "expr": "kubecost_node_is_linux",
               "format": "table",
               "instant": true,
               "legendFormat": "",
@@ -524,7 +524,7 @@ spec:
                 "indexByName": {},
                 "renameByName": {
                   "Value #A": "Monthly Cost",
-                  "Value #B": "Spot",
+                  "Value #B": "linux",
                   "node": "Node"
                 }
               }

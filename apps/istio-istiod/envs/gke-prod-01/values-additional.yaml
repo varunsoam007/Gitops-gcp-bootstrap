@@ -9,7 +9,7 @@ resources:
     memory: 216Mi
 
 nodeSelector:
-  karpenter.sh/capacity-type: on-demand
+  kubernetes.io/os: linux
 
 autoscaleEnabled: true
 autoscaleMin: 2

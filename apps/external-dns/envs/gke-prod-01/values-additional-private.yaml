@@ -11,7 +11,7 @@ resources:
 
 
 nodeSelector:
-  karpenter.sh/capacity-type: on-demand
+  kubernetes.io/os: linux
 
 podLabels:
   azure.workload.identity/use: "true"

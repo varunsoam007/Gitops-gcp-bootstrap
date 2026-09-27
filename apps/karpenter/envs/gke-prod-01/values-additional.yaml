@@ -4,7 +4,7 @@ tolerations:
   - effect: NoSchedule
     key: kubernetes.azure.com/scalesetpriority
     operator: Equal
-    value: spot
+    value: linux
   - effect: NoSchedule
     key: CriticalAddonsOnly
     operator: Exists

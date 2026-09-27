@@ -62,7 +62,7 @@ opencost:
       scrapeTimeout: 30s
 
   nodeSelector:
-    karpenter.sh/capacity-type: on-demand
+    kubernetes.io/os: linux
 
 # Pod security - using defaults as UI container requires write access to /var/www
 # The exporter container has its own security context defined in the chart

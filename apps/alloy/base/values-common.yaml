@@ -20,9 +20,9 @@ controller:
     prometheus.io/scrape: "true"
     prometheus.io/port: "12345"
     prometheus.io/path: "/metrics"
-  # Tolerate spot nodes
+  # Tolerate linux nodes
   tolerations:
     - effect: NoSchedule
       key: kubernetes.azure.com/scalesetpriority
       operator: Equal
-      value: spot
+      value: linux

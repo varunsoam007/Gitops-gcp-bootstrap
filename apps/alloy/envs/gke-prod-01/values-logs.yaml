@@ -12,13 +12,13 @@ controller:
   # High priority to ensure collection runs on all nodes
   priorityClassName: observability-critical
   nodeSelector:
-    karpenter.sh/capacity-type: on-demand
-  # Tolerate spot nodes
+    kubernetes.io/os: linux
+  # Tolerate linux nodes
   tolerations:
     - effect: NoSchedule
       key: kubernetes.azure.com/scalesetpriority
       operator: Equal
-      value: spot
+      value: linux
   # Extra volumes for persistent storage
   volumes:
     extra:

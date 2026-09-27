@@ -1,9 +1,9 @@
 apiVersion: karpenter.sh/v1
 kind: NodePool
 metadata:
-  name: generic-on-demand
+  name: generic-linux
   annotations:
-    kubernetes.io/description: "On-demand NodePool for stable workloads"
+    kubernetes.io/description: "linux NodePool for stable workloads"
 spec:
   weight: 10
   template:
@@ -18,35 +18,35 @@ spec:
         - key: kubernetes.azure.com/mode
           operator: In
           values: ["user"]
-        - key: karpenter.sh/capacity-type
+        - key: kubernetes.io/os
           operator: In
-          values: ["on-demand"]
-        - key: karpenter.azure.com/sku-series
+          values: ["linux"]
+        - key: 
           operator: In
           values: ["Das_v5", "Eas_v5"]
-        - key: karpenter.azure.com/sku-cpu
+        - key: 
           operator: Gte
           values: ["2"]
-        - key: karpenter.azure.com/sku-cpu
+        - key: 
           operator: Lte
           values: ["16"]
-        - key: karpenter.azure.com/sku-memory
+        - key: 
           operator: Gte
           values: ["8192"]
-        - key: karpenter.azure.com/sku-memory
+        - key: 
           operator: Lte
           values: ["65536"]
-        - key: karpenter.azure.com/sku-storage-premium-capable
+        - key: 
           operator: In
           values: ["true"]
-        - key: karpenter.azure.com/sku-networking-accelerated
+        - key: 
           operator: In
           values: ["true"]
         - key: topology.kubernetes.io/zone
           operator: In
           values: ["uksouth-1", "uksouth-2", "uksouth-3"]
       nodeClassRef:
-        group: karpenter.azure.com
+        group: 
         kind: AKSNodeClass
         name: default
   limits:

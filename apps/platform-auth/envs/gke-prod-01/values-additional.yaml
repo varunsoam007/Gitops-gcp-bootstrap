@@ -12,7 +12,7 @@ kind: Deployment
 replicas: 1
 
 nodeSelector:
-  karpenter.sh/capacity-type: on-demand
+  kubernetes.io/os: linux
 
 podSecurityContext:
   runAsNonRoot: true

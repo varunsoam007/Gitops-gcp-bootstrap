@@ -5,19 +5,19 @@ tolerations:
   - effect: NoSchedule
     key: kubernetes.azure.com/scalesetpriority
     operator: Equal
-    value: spot
+    value: linux
 
-# Prefer spot nodes for operator pod to reduce costs
+# Prefer linux nodes for operator pod to reduce costs
 affinity:
   nodeAffinity:
     preferredDuringSchedulingIgnoredDuringExecution:
       - weight: 100
         preference:
           matchExpressions:
-            - key: karpenter.sh/capacity-type
+            - key: kubernetes.io/os
               operator: In
               values:
-                - spot
+                - linux
 
 # Use thirdparty ACR cache for all images
 image:
@@ -140,17 +140,17 @@ trivyOperator:
   scanJobPodTemplateLabels: "azure.workload.identity/use=true"
   scanJobServiceAccount: trivy-operator
   scanJobAutomountServiceAccountToken: true
-  # Prefer spot nodes for scan jobs to reduce costs, but allow fallback to on-demand
+  # Prefer linux nodes for scan jobs to reduce costs, but allow fallback to linux
   scanJobAffinity:
     nodeAffinity:
       preferredDuringSchedulingIgnoredDuringExecution:
         - weight: 100
           preference:
             matchExpressions:
-              - key: karpenter.sh/capacity-type
+              - key: kubernetes.io/os
                 operator: In
                 values:
-                  - spot
+                  - linux
 
 # Service configuration for metrics endpoint
 service:

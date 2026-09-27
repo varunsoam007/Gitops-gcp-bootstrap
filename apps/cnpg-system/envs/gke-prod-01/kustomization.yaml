@@ -20,7 +20,7 @@ patches:
       - op: add
         path: /spec/template/spec/nodeSelector
         value:
-          karpenter.sh/capacity-type: on-demand
+          kubernetes.io/os: linux
   - target:
       group: apps
       version: v1

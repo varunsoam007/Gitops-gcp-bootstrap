@@ -8,4 +8,4 @@ resources:
     memory: 100Mi
 
 nodeSelector:
-  karpenter.sh/capacity-type: on-demand
+  kubernetes.io/os: linux

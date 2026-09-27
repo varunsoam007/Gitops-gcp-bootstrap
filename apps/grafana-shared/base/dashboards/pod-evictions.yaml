@@ -29,7 +29,7 @@ spec:
           }
         ]
       },
-      "description": "Monitors Kubernetes pod evictions on AKS spot node pools. Covers replica health, eviction events, pod restarts, node pressure, topology co-location risk, and zone distribution.",
+      "description": "Monitors Kubernetes pod evictions on AKS linux node pools. Covers replica health, eviction events, pod restarts, node pressure, topology co-location risk, and zone distribution.",
       "editable": true,
       "fiscalYearStartMonth": 0,
       "graphTooltip": 1,
@@ -155,7 +155,7 @@ spec:
         {
           "id": 4,
           "type": "stat",
-          "title": "Spot Nodes",
+          "title": "linux Nodes",
           "datasource": { "type": "prometheus", "uid": "mimir" },
           "gridPos": { "h": 3, "w": 6, "x": 18, "y": 0 },
           "fieldConfig": {
@@ -183,11 +183,11 @@ spec:
           "targets": [
             {
               "refId": "A",
-              "expr": "count(max by (node, cluster, label_karpenter_sh_nodepool) (kube_node_labels{cluster=~\"$cluster\",label_karpenter_sh_nodepool=~\".+spot.*\"})) or vector(0)",
+              "expr": "count(max by (node, cluster, label_karpenter_sh_nodepool) (kube_node_labels{cluster=~\"$cluster\",label_karpenter_sh_nodepool=~\".+linux.*\"})) or vector(0)",
               "instant": true
             }
           ],
-          "description": "Number of Karpenter-managed spot nodes currently registered in the cluster (matches any nodepool with 'spot' in the name)."
+          "description": "Number of Karpenter-managed linux nodes currently registered in the cluster (matches any nodepool with 'linux' in the name)."
         },
         {
           "id": 5,
@@ -374,7 +374,7 @@ spec:
         {
           "id": 12,
           "type": "timeseries",
-          "title": "Node Pressure Conditions (Spot Nodes)",
+          "title": "Node Pressure Conditions (linux Nodes)",
           "datasource": { "type": "prometheus", "uid": "mimir" },
           "gridPos": { "h": 8, "w": 12, "x": 12, "y": 23 },
           "fieldConfig": {
@@ -402,11 +402,11 @@ spec:
             },
             {
               "refId": "B",
-              "expr": "count by (node) (max by (node, cluster, label_karpenter_sh_nodepool) (kube_node_labels{cluster=~\"$cluster\",label_karpenter_sh_nodepool=~\".+spot.*\"}) * on(node, cluster) group_left() (max by (node, cluster) (kube_node_status_condition{cluster=~\"$cluster\",condition=\"Ready\",status=\"true\"} == 1)))",
-              "legendFormat": "Spot node up: {{node}}"
+              "expr": "count by (node) (max by (node, cluster, label_karpenter_sh_nodepool) (kube_node_labels{cluster=~\"$cluster\",label_karpenter_sh_nodepool=~\".+linux.*\"}) * on(node, cluster) group_left() (max by (node, cluster) (kube_node_status_condition{cluster=~\"$cluster\",condition=\"Ready\",status=\"true\"} == 1)))",
+              "legendFormat": "linux node up: {{node}}"
             }
           ],
-          "description": "Active node pressure conditions (MemoryPressure, DiskPressure, PIDPressure) that trigger pod evictions, with spot node availability overlay."
+          "description": "Active node pressure conditions (MemoryPressure, DiskPressure, PIDPressure) that trigger pod evictions, with linux node availability overlay."
         },
         {
           "id": 13,
@@ -464,7 +464,7 @@ spec:
           "transformations": [
             { "id": "organize", "options": { "renameByName": { "exported_namespace": "Namespace", "node": "Node", "created_by_name": "ReplicaSet", "Value": "Pod Count" } } }
           ],
-          "description": "Number of pods from the same ReplicaSet running on the same node. Yellow=2 pods on same node (topologySpreadConstraint bypass risk), Red=3+ (critical co-location). Spot eviction of that node would take down all of them."
+          "description": "Number of pods from the same ReplicaSet running on the same node. Yellow=2 pods on same node (topologySpreadConstraint bypass risk), Red=3+ (critical co-location). linux eviction of that node would take down all of them."
         },
         {
           "id": 15,
@@ -514,7 +514,7 @@ spec:
           "transformations": [
             { "id": "organize", "options": { "renameByName": { "exported_namespace": "Namespace", "label_topology_kubernetes_io_zone": "Zone", "created_by_name": "ReplicaSet", "Value": "Pod Count" } } }
           ],
-          "description": "Replica distribution across availability zones per ReplicaSet. A high count in a single zone means zone-level spot eviction would cause a major outage."
+          "description": "Replica distribution across availability zones per ReplicaSet. A high count in a single zone means zone-level linux eviction would cause a major outage."
         },
         {
           "id": 16,
@@ -863,7 +863,7 @@ spec:
       "schemaVersion": 41,
       "style": "dark",
       "tags": [
-        "spot",
+        "linux",
         "evictions",
         "aks",
         "reliability",
@@ -938,8 +938,8 @@ spec:
         "time_options": ["30m", "1h", "3h", "6h", "12h", "24h", "2d", "7d"]
       },
       "timezone": "browser",
-      "title": "Pod Evictions — AKS Spot Nodes",
-      "uid": "spot-pod-evictions-aks",
+      "title": "Pod Evictions — AKS linux Nodes",
+      "uid": "linux-pod-evictions-aks",
       "version": 1,
       "weekStart": ""
     }

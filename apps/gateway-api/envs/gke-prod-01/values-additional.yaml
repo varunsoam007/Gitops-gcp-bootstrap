@@ -91,7 +91,7 @@ gatewayOptions:
               priorityClassName: observability-critical
               nodeSelector:
                 kubernetes.azure.com/mode: user
-                karpenter.sh/capacity-type: on-demand
+                kubernetes.io/os: linux
               containers:
               - name: istio-proxy
                 resources:
@@ -112,7 +112,7 @@ gatewayOptions:
               priorityClassName: observability-critical
               nodeSelector:
                 kubernetes.azure.com/mode: user
-                karpenter.sh/capacity-type: on-demand
+                kubernetes.io/os: linux
               containers:
               - name: istio-proxy
                 resources:

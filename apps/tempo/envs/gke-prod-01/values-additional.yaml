@@ -20,10 +20,10 @@ backendScheduler:
       requiredDuringSchedulingIgnoredDuringExecution:
         nodeSelectorTerms:
           - matchExpressions:
-              - key: karpenter.sh/capacity-type
+              - key: kubernetes.io/os
                 operator: In
                 values:
-                  - on-demand
+                  - linux
   resources:
     requests:
       cpu: 15m
@@ -39,10 +39,10 @@ backendWorker:
       requiredDuringSchedulingIgnoredDuringExecution:
         nodeSelectorTerms:
           - matchExpressions:
-              - key: karpenter.sh/capacity-type
+              - key: kubernetes.io/os
                 operator: In
                 values:
-                  - on-demand
+                  - linux
   resources:
     requests:
       cpu: 15m
@@ -58,10 +58,10 @@ blockBuilder:
       requiredDuringSchedulingIgnoredDuringExecution:
         nodeSelectorTerms:
           - matchExpressions:
-              - key: karpenter.sh/capacity-type
+              - key: kubernetes.io/os
                 operator: In
                 values:
-                  - on-demand
+                  - linux
   resources:
     requests:
       cpu: 15m
@@ -80,10 +80,10 @@ distributor:
       requiredDuringSchedulingIgnoredDuringExecution:
         nodeSelectorTerms:
           - matchExpressions:
-              - key: karpenter.sh/capacity-type
+              - key: kubernetes.io/os
                 operator: In
                 values:
-                  - on-demand
+                  - linux
   topologySpreadConstraints: |
     - maxSkew: 1
       topologyKey: kubernetes.io/hostname
@@ -109,10 +109,10 @@ liveStore:
       requiredDuringSchedulingIgnoredDuringExecution:
         nodeSelectorTerms:
           - matchExpressions:
-              - key: karpenter.sh/capacity-type
+              - key: kubernetes.io/os
                 operator: In
                 values:
-                  - on-demand
+                  - linux
   topologySpreadConstraints: |
     - maxSkew: 1
       topologyKey: kubernetes.io/hostname
@@ -135,10 +135,10 @@ querier:
       requiredDuringSchedulingIgnoredDuringExecution:
         nodeSelectorTerms:
           - matchExpressions:
-              - key: karpenter.sh/capacity-type
+              - key: kubernetes.io/os
                 operator: In
                 values:
-                  - on-demand
+                  - linux
   topologySpreadConstraints: |
     - maxSkew: 1
       topologyKey: kubernetes.io/hostname
@@ -161,10 +161,10 @@ queryFrontend:
       requiredDuringSchedulingIgnoredDuringExecution:
         nodeSelectorTerms:
           - matchExpressions:
-              - key: karpenter.sh/capacity-type
+              - key: kubernetes.io/os
                 operator: In
                 values:
-                  - on-demand
+                  - linux
   topologySpreadConstraints: |
     - maxSkew: 1
       topologyKey: kubernetes.io/hostname
@@ -184,10 +184,10 @@ memcached:
       requiredDuringSchedulingIgnoredDuringExecution:
         nodeSelectorTerms:
           - matchExpressions:
-              - key: karpenter.sh/capacity-type
+              - key: kubernetes.io/os
                 operator: In
                 values:
-                  - on-demand
+                  - linux
   resources:
     requests:
       cpu: 15m
@@ -205,10 +205,10 @@ metricsGenerator:
       requiredDuringSchedulingIgnoredDuringExecution:
         nodeSelectorTerms:
           - matchExpressions:
-              - key: karpenter.sh/capacity-type
+              - key: kubernetes.io/os
                 operator: In
                 values:
-                  - on-demand
+                  - linux
   resources:
     requests:
       cpu: 15m

@@ -23,9 +23,9 @@ resources:
     cpu: 23m
     memory: 938Mi
 
-# Run on on-demand nodes for stability (cache is critical for Loki performance)
+# Run on linux nodes for stability (cache is critical for Loki performance)
 nodeSelector:
-  karpenter.sh/capacity-type: on-demand
+  kubernetes.io/os: linux
 
 # Spread replicas across availability zones
 affinity:

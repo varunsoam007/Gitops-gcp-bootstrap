@@ -1,11 +1,11 @@
 apiVersion: karpenter.sh/v1
 kind: NodePool
 metadata:
-  name: arm64-on-demand
+  name: arm64-linux
   annotations:
-    kubernetes.io/description: "ARM64 on-demand NodePool - DISABLED: no AKS images available in UK South"
+    kubernetes.io/description: "ARM64 linux NodePool - DISABLED: no AKS images available in UK South"
 spec:
-  weight: 15  # Higher than generic-on-demand (10) to prefer ARM64
+  weight: 15  # Higher than generic-linux (10) to prefer ARM64
   template:
     spec:
       requirements:
@@ -15,12 +15,12 @@ spec:
         - key: kubernetes.io/arch
           operator: In
           values: ["arm64"]
-        - key: karpenter.sh/capacity-type
+        - key: kubernetes.io/os
           operator: In
-          values: ["on-demand"]
+          values: ["linux"]
         # Bpsv2: ARM64 burstable series - waiting for AKS image support in UK South
         # All SKUs have minimum 8 GiB RAM
-        - key: karpenter.azure.com/sku-name
+        - key: 
           operator: In
           values:
             - "Standard_B2ps_v2"   # 2 vCPU, 8 GiB RAM
@@ -29,7 +29,7 @@ spec:
           operator: In
           values: ["uksouth-1", "uksouth-2", "uksouth-3"]
       nodeClassRef:
-        group: karpenter.azure.com
+        group: 
         kind: AKSNodeClass
         name: default
   limits:

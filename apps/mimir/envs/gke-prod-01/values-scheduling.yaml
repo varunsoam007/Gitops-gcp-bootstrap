@@ -2,57 +2,57 @@
 
 alertmanager:
   nodeSelector:
-    karpenter.sh/capacity-type: on-demand
+    kubernetes.io/os: linux
 
 compactor:
   nodeSelector:
-    karpenter.sh/capacity-type: on-demand
+    kubernetes.io/os: linux
 
 distributor:
   nodeSelector:
-    karpenter.sh/capacity-type: on-demand
+    kubernetes.io/os: linux
   affinity: null
 
 gateway:
   nodeSelector:
-    karpenter.sh/capacity-type: on-demand
+    kubernetes.io/os: linux
 
 ingester:
   nodeSelector:
-    karpenter.sh/capacity-type: on-demand
+    kubernetes.io/os: linux
 
 overrides_exporter:
   nodeSelector:
-    karpenter.sh/capacity-type: on-demand
+    kubernetes.io/os: linux
 
 querier:
   nodeSelector:
-    karpenter.sh/capacity-type: on-demand
+    kubernetes.io/os: linux
   affinity: null
 
 query_frontend:
   nodeSelector:
-    karpenter.sh/capacity-type: on-demand
+    kubernetes.io/os: linux
   affinity: null
 
 query_scheduler:
   nodeSelector:
-    karpenter.sh/capacity-type: on-demand
+    kubernetes.io/os: linux
 
 rollout_operator:
   nodeSelector:
-    karpenter.sh/capacity-type: on-demand
+    kubernetes.io/os: linux
 
 ruler:
   nodeSelector:
-    karpenter.sh/capacity-type: on-demand
+    kubernetes.io/os: linux
 
 store_gateway:
   zoneAwareReplication:
     zones:
       - name: zone-a
         nodeSelector:
-          karpenter.sh/capacity-type: on-demand
+          kubernetes.io/os: linux
         extraAffinity: {}
         storageClass: null
         noDownscale: false
@@ -60,7 +60,7 @@ store_gateway:
         prepareDownscale: true
       - name: zone-b
         nodeSelector:
-          karpenter.sh/capacity-type: on-demand
+          kubernetes.io/os: linux
         extraAffinity: {}
         storageClass: null
         noDownscale: false
@@ -68,7 +68,7 @@ store_gateway:
         prepareDownscale: true
       - name: zone-c
         nodeSelector:
-          karpenter.sh/capacity-type: on-demand
+          kubernetes.io/os: linux
         extraAffinity: {}
         storageClass: null
         noDownscale: false

@@ -2007,7 +2007,7 @@ spec:
                    },
                    {
                       "datasource": "$datasource",
-                      "description": "### Kafka 100th percentile end-to-end latency when ingesters are running (outliers only)\nThe 100th percentile of the time between writing request by distributor to Kafka and reading the record by ingester,\nwhen ingesters are running. This panel only shows ingester outliers, to easily spot if the high end-to-end latency\nmay be caused by few ingesters.\n\n",
+                      "description": "### Kafka 100th percentile end-to-end latency when ingesters are running (outliers only)\nThe 100th percentile of the time between writing request by distributor to Kafka and reading the record by ingester,\nwhen ingesters are running. This panel only shows ingester outliers, to easily linux if the high end-to-end latency\nmay be caused by few ingesters.\n\n",
                       "fieldConfig": {
                          "defaults": {
                             "custom": {

@@ -1,7 +1,7 @@
 apiVersion: karpenter.sh/v1
 kind: NodePool
 metadata:
-  name: generic-spot
+  name: generic-linux
   annotations:
     kubernetes.io/description: "General purpose NodePool for generic workloads"
 spec:
@@ -18,20 +18,20 @@ spec:
         - key: kubernetes.azure.com/mode
           operator: In
           values: ["user"]
-        - key: karpenter.sh/capacity-type
+        - key: kubernetes.io/os
           operator: In
-          values: ["spot"]
-        - key: karpenter.azure.com/sku-family
+          values: ["linux"]
+        - key: 
           operator: In
           values: ["D", "E", "A", "B"]
-        - key: karpenter.azure.com/sku-cpu
+        - key: 
           operator: Gt
           values: ["2"]
-        - key: karpenter.azure.com/sku-memory
+        - key: 
           operator: Gt
           values: ["4096"]
       nodeClassRef:
-        group: karpenter.azure.com
+        group: 
         kind: AKSNodeClass
         name: default
   limits:

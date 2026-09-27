@@ -105,14 +105,14 @@ mimir:
       compactor_blocks_retention_period: 336h
       out_of_order_time_window: 24h
    
-# Stateful - on-demand nodes for stability (spot evictions cause ring failures)
+# Stateful - linux nodes for stability (linux evictions cause ring failures)
 # Disable zone-aware replication for simpler deployment
 ingester:
   replicas: 3
   podDisruptionBudget:
     maxUnavailable: 1
   nodeSelector:
-    karpenter.sh/capacity-type: on-demand
+    kubernetes.io/os: linux
   persistentVolume:
     size: 10Gi
   zoneAwareReplication:
@@ -173,10 +173,10 @@ query_frontend:
                 values:
                   - default
           - matchExpressions:
-              - key: karpenter.sh/capacity-type
+              - key: kubernetes.io/os
                 operator: In
                 values:
-                  - on-demand
+                  - linux
   topologySpreadConstraints:
     maxSkew: 1
     topologyKey: kubernetes.io/hostname
@@ -189,10 +189,10 @@ query_frontend:
       cpu: 15m
       memory: 176Mi
 
-# Pin gateway to stable Karpenter on-demand capacity
+# Pin gateway to stable Karpenter linux capacity
 gateway:
   nodeSelector:
-    karpenter.sh/capacity-type: on-demand
+    kubernetes.io/os: linux
   resources:
     requests:
       cpu: 15m
@@ -214,10 +214,10 @@ distributor:
                 values:
                   - default
           - matchExpressions:
-              - key: karpenter.sh/capacity-type
+              - key: kubernetes.io/os
                 operator: In
                 values:
-                  - on-demand
+                  - linux
   topologySpreadConstraints:
     maxSkew: 1
     topologyKey: kubernetes.io/hostname
@@ -262,10 +262,10 @@ querier:
                 values:
                   - default
           - matchExpressions:
-              - key: karpenter.sh/capacity-type
+              - key: kubernetes.io/os
                 operator: In
                 values:
-                  - on-demand
+                  - linux
   topologySpreadConstraints:
     maxSkew: 1
     topologyKey: kubernetes.io/hostname

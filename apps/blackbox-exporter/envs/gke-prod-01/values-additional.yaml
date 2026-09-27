@@ -13,9 +13,9 @@ image:
 kind: Deployment
 replicas: 2
 
-# Use stable Karpenter on-demand capacity
+# Use stable Karpenter linux capacity
 nodeSelector:
-  karpenter.sh/capacity-type: on-demand
+  kubernetes.io/os: linux
 
 # High priority to survive preemption
 priorityClassName: observability-critical

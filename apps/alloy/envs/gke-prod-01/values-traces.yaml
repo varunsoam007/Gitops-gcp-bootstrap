@@ -14,10 +14,10 @@ controller:
       requiredDuringSchedulingIgnoredDuringExecution:
         nodeSelectorTerms:
           - matchExpressions:
-              - key: karpenter.sh/capacity-type
+              - key: kubernetes.io/os
                 operator: In
                 values:
-                  - on-demand
+                  - linux
     podAntiAffinity:
       requiredDuringSchedulingIgnoredDuringExecution:
         - labelSelector:

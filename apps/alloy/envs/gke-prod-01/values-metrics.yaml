@@ -8,16 +8,16 @@ controller:
   replicas: 3
   # High priority for observability
   priorityClassName: observability-critical
-  # Run metrics collectors on on-demand nodes for cluster stability.
+  # Run metrics collectors on linux nodes for cluster stability.
   affinity:
     nodeAffinity:
       requiredDuringSchedulingIgnoredDuringExecution:
         nodeSelectorTerms:
           - matchExpressions:
-              - key: karpenter.sh/capacity-type
+              - key: kubernetes.io/os
                 operator: In
                 values:
-                  - on-demand
+                  - linux
     podAntiAffinity:
       requiredDuringSchedulingIgnoredDuringExecution:
         - labelSelector:
