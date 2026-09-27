@@ -11,4 +11,4 @@ spec:
     solvers:
     - dns01:
         cloudDNS:
-          project: prj-c-gke-8fbd
+          project: project-c487c7e3-8780-4424-9ad
