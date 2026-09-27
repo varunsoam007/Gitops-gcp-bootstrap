@@ -18,7 +18,7 @@ driver:
           memory: 128Mi
 
 nodeSelector:
-  karpenter.sh/capacity-type: on-demand
+  
 
 customRules: #https://raw.githubusercontent.com/falcosecurity/rules/main/rules/falco_rules.yaml
   custom-rules.yaml : |
@@ -61,7 +61,7 @@ falcosidekick:
     repository: falcosecurity/falcosidekick
   enabled: true
   nodeSelector:
-    karpenter.sh/capacity-type: on-demand
+    
   resources:
     requests:
       cpu: 15m

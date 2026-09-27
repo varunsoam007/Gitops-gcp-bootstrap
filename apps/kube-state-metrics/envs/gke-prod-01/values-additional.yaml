@@ -15,9 +15,7 @@ prometheus:
     scrapeTimeout: 10s
 
 # Pin to stable AKS system-pool nodes (survives default pool rotation)
-nodeSelector:
-  kubernetes.azure.com/mode: system
-  kubernetes.azure.com/priority: regular
+nodeSelector: {}
 
 # System pool nodes carry the CriticalAddonsOnly taint; tolerate it to schedule
 tolerations:
