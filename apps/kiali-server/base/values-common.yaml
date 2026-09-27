@@ -22,7 +22,7 @@ kiali_feature_flags:
     ignore: ["KIA1301", "KIA1402"]
 
 deployment:
-  image_name: docker.io/kiali/kiali
+  image_name: quay.io/kiali/kiali
   resources:
     requests:
       cpu: 1m
