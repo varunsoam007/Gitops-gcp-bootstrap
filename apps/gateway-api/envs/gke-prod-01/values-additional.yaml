@@ -4,7 +4,7 @@
 #====================================
 environment: "devm"
 cluster: "k01"
-domain: "pinpetuk.net"
+domain: "jksoam.in"
 
 # Gateway API CRDs
 gatewayApi:
@@ -30,7 +30,7 @@ externalGateway:
   
   # TLS configuration
   tls:
-    certificateRef: "wildcard-k01-devm-corp-pinpetuk-net"
+    certificateRef: "wildcard-jksoam-in"
 
 
 #==================================== 
@@ -49,10 +49,10 @@ internalGateway:
   
   # TLS configuration
   tls:
-    certificateRef: "wildcard-k01-devm-corp-pinpetuk-net"
+    certificateRef: "wildcard-jksoam-in"
   
   # Hostname configuration for listeners
-  hostname: "*.k01.devm.corp.pinpetuk.net"
+  hostname: "*.jksoam.in"
 
 
 #==================================== 
@@ -60,20 +60,20 @@ internalGateway:
 #====================================
 
 certificates:
-  - name: "wildcard-k01-devm-pinpetuk-net"
-    secretName: "wildcard-k01-devm-pinpetuk-net"
+  - name: "wildcard-jksoam-in"
+    secretName: "wildcard-jksoam-in"
     dnsNames:
-      - "*.k01.devm.pinpetuk.net"
+      - "*.jksoam.in"
     issuerRef:
-      name: "letsencrypt-prod-k01.devm.pinpetuk.net"
+      name: "letsencrypt-prod-jksoam.in"
       kind: "ClusterIssuer"
 
-  - name: "wildcard-k01-devm-corp-pinpetuk-net"
-    secretName: "wildcard-k01-devm-corp-pinpetuk-net"
+  - name: "wildcard-jksoam-in"
+    secretName: "wildcard-jksoam-in"
     dnsNames:
-      - "*.k01.devm.corp.pinpetuk.net"
+      - "*.jksoam.in"
     issuerRef:
-      name: "letsencrypt-prod-k01.devm.corp.pinpetuk.net"
+      name: "letsencrypt-prod-jksoam.in"
       kind: "ClusterIssuer"
 
 

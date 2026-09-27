@@ -4,6 +4,6 @@ image:
 
 auth:
   enabled: true
-  hostname: radar.k01.devm.corp.pinpetuk.net
+  hostname: radar.jksoam.in
   requiredRoles:
     - "radar.access"

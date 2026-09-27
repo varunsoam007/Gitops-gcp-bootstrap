@@ -11,7 +11,7 @@ spec:
       namespace: gateway-api
       group: gateway.networking.k8s.io
       kind: Gateway
-  hostnames: ["chaos-mesh.k01.devm.corp.pinpetuk.net"]
+  hostnames: ["chaos-mesh.jksoam.in"]
   rules:
     - matches:
         - path:

@@ -23,7 +23,7 @@ serviceAccount:
     azure.workload.identity/client-id: 441dce6c-7055-457f-8b9f-8b914f2f1921 # app id for: msi-pin-xdns-devm-int-uks
 
 domainFilters:
-  - k01.devm.corp.pinpetuk.net
+  - jksoam.in
 
 extraArgs:
   - --azure-zones-cache-duration=10m

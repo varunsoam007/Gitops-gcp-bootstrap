@@ -66,4 +66,4 @@ dashboard:
         group: gateway.networking.k8s.io
         kind: Gateway
     hostnames:
-      - goldilocks.k01.devm.corp.pinpetuk.net
+      - goldilocks.jksoam.in

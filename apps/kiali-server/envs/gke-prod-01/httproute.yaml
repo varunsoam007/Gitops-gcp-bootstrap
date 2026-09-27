@@ -12,7 +12,7 @@ spec:
     namespace: gateway-api
     group: gateway.networking.k8s.io
     kind: Gateway
-  hostnames: ["kiali.k01.devm.corp.pinpetuk.net"]
+  hostnames: ["kiali.jksoam.in"]
   rules:
   - matches:
     - path:

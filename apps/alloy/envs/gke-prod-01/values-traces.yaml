@@ -3,7 +3,7 @@
 # Client endpoints:
 # - In-cluster OTLP/gRPC: alloy-traces.alloy.svc.cluster.local:4317
 # - In-cluster OTLP/HTTP: http://alloy-traces.alloy.svc.cluster.local:4318/v1/traces
-# - Internal gateway OTLP/HTTP: https://alloy-traces.k01.devm.corp.pinpetuk.net/v1/traces
+# - Internal gateway OTLP/HTTP: https://alloy-traces.jksoam.in/v1/traces
 
 controller:
   type: deployment
@@ -49,7 +49,7 @@ extraObjects:
           group: gateway.networking.k8s.io
           kind: Gateway
       hostnames:
-        - alloy-traces.k01.devm.corp.pinpetuk.net
+        - alloy-traces.jksoam.in
       rules:
         - matches:
             - path:

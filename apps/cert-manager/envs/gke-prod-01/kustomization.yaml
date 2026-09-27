@@ -3,15 +3,12 @@ kind: Kustomization
 
 resources:
   - ../../base
-  - clusterissuer-k01.devm.corp.pinpetuk.net.yaml
-  - clusterissuer-k01.devm.pinpetuk.net.yaml
-
-helmGlobals:
-  chartHome: ../../../../charts
+  - clusterissuer-jksoam.in.yaml
 
 helmCharts:
-  - name: jetstack-cert-manager-v1.18.1
-    version: v1.18.1
+  - name: cert-manager
+    repo: https://charts.jetstack.io
+    version: v1.14.4
     releaseName: cert-manager
     namespace: cert-manager
     additionalValuesFiles:

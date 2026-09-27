@@ -28,7 +28,7 @@ controller:
           type: DirectoryOrCreate
 
 # Internal route for Loki push ingestion from trusted callers outside the cluster.
-# Exposes the Loki push API at https://alloy-logs.k01.devm.corp.pinpetuk.net/loki/api/v1/push
+# Exposes the Loki push API at https://alloy-logs.jksoam.in/loki/api/v1/push
 extraObjects:
   - apiVersion: gateway.networking.k8s.io/v1
     kind: HTTPRoute
@@ -44,7 +44,7 @@ extraObjects:
           group: gateway.networking.k8s.io
           kind: Gateway
       hostnames:
-        - alloy-logs.k01.devm.corp.pinpetuk.net
+        - alloy-logs.jksoam.in
       rules:
         - matches:
             - path:

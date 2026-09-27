@@ -53,7 +53,7 @@ extraObjects:
           group: gateway.networking.k8s.io
           kind: Gateway
       hostnames:
-        - alloy.k01.devm.corp.pinpetuk.net
+        - alloy.jksoam.in
       rules:
         - matches:
             - path:
@@ -79,7 +79,7 @@ extraObjects:
           group: gateway.networking.k8s.io
           kind: Gateway
       hostnames:
-        - alloy-metrics.k01.devm.corp.pinpetuk.net
+        - alloy-metrics.jksoam.in
       rules:
         - matches:
             - path:

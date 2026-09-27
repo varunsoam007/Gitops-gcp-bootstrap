@@ -11,7 +11,7 @@ spec:
     group: gateway.networking.k8s.io
     kind: Gateway
     namespace: gateway-api
-  hostnames: ["argo-rollouts.k01.devm.corp.pinpetuk.net"]
+  hostnames: ["argo-rollouts.jksoam.in"]
   rules:
   - matches:
     - path:

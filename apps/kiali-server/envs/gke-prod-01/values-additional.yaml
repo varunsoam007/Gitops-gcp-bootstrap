@@ -1,7 +1,7 @@
 # Environment-specific overrides for devm-k01
 auth:
   enabled: true
-  hostname: kiali.k01.devm.corp.pinpetuk.net
+  hostname: kiali.jksoam.in
   requiredRoles:
     - "kiali.access"
 

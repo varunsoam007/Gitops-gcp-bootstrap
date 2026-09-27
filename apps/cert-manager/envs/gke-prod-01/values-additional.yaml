@@ -1,7 +1,6 @@
 crds:
   enabled: true
 
-# Resources: req==lim per Tim Hockin pattern (VPA upper: ~128Mi all components)
 resources:
   requests:
     cpu: 15m
@@ -10,8 +9,7 @@ resources:
     cpu: 15m
     memory: 100Mi
 
-nodeSelector:
-  karpenter.sh/capacity-type: on-demand
+nodeSelector: {}
 
 cainjector:
   enabled: true
@@ -22,8 +20,7 @@ cainjector:
     limits:
       cpu: 15m
       memory: 139Mi
-  nodeSelector:
-    karpenter.sh/capacity-type: on-demand
+  nodeSelector: {}
 
 webhook:
   resources:
@@ -33,20 +30,15 @@ webhook:
     limits:
       cpu: 15m
       memory: 100Mi
-  nodeSelector:
-    karpenter.sh/capacity-type: on-demand
+  nodeSelector: {}
 
 startupapicheck:
-  nodeSelector:
-    karpenter.sh/capacity-type: on-demand
-
-podLabels:
-  azure.workload.identity/use: "true"
+  nodeSelector: {}
 
 serviceAccount:
   name: cert-manager
   annotations:
-    azure.workload.identity/client-id: da3953b0-36aa-4085-8102-6e758e33c52a
+    iam.gke.io/gcp-service-account: cert-manager@prj-c-gke-8fbd.iam.gserviceaccount.com
 
 extraArgs:
   - --dns01-recursive-nameservers-only

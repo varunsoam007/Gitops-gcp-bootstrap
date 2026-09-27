@@ -3,6 +3,6 @@
 
 auth:
   enabled: true
-  hostname: alloy.k01.devm.corp.pinpetuk.net
+  hostname: alloy.jksoam.in
   requiredRoles:
     - "alloy.access"

@@ -59,7 +59,7 @@ config:
     cookie_expire = "168h"
     cookie_refresh = "1h"
     cookie_httponly = true
-    cookie_domains = [ ".k01.devm.corp.pinpetuk.net" ]
+    cookie_domains = [ ".jksoam.in" ]
     set_xauthrequest = true
     pass_authorization_header = true
     pass_access_token = true
@@ -72,7 +72,7 @@ config:
     reverse_proxy = true
     code_challenge_method = "S256"
     silence_ping_logging = true
-    whitelist_domains = [ ".k01.devm.corp.pinpetuk.net" ]
+    whitelist_domains = [ ".jksoam.in" ]
     oidc_issuer_url = "https://login.microsoftonline.com/a47336de-50a0-418e-a3a6-0d36f185f6d4/v2.0"
     provider = "entra-id"
     client_id = "{{ `{{ .Env.CLIENT_ID }}` }}"
