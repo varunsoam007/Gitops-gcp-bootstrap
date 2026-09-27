@@ -38,7 +38,7 @@ startupapicheck:
 serviceAccount:
   name: cert-manager
   annotations:
-    iam.gke.io/gcp-service-account: cert-manager@prj-c-gke-8fbd.iam.gserviceaccount.com
+    iam.gke.io/gcp-service-account: cert-manager@project-c487c7e3-8780-4424-9ad.iam.gserviceaccount.com
 
 extraArgs:
   - --dns01-recursive-nameservers-only
