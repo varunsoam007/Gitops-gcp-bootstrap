@@ -33,6 +33,41 @@ During the deployment of ArgoCD via `--server-side`, we encountered a few issues
 - **Kustomize Helm Inflation:** By default, ArgoCD's embedded Kustomize engine blocks Helm rendering (`helmCharts` in `kustomization.yaml`) for security reasons. To fix this, we patched the `argocd-cm` ConfigMap to include `kustomize.buildOptions: "--enable-helm"`.
 - **RBAC API Group Errors:** Modern GKE versions introduce several custom API groups (like `autoscaling.x-k8s.io` and `resource.k8s.io`). The default ArgoCD ClusterRole failed to list these, causing applications to get stuck in a "Deleting" or "Unknown" state (ComparisonErrors). To permanently fix this, we created a `ClusterRoleBinding` granting `cluster-admin` to the `argocd-application-controller` service account.
 
+## Baseline Applications Directory
+
+This repository contains 42 baseline applications that are critical for running a production-grade Kubernetes cluster. They are grouped into the following functional categories:
+
+### 1. Observability & Monitoring
+- **`loki`**: Centralized log aggregation system (stores logs in GCS).
+- **`mimir-distributed`**: Scalable metrics storage and Prometheus backend (stores metrics in GCS).
+- **`tempo-distributed`**: Distributed tracing system for tracking requests across microservices.
+- **`alloy` (Grafana Alloy)**: OpenTelemetry collector that gathers logs, metrics, and traces from the cluster and forwards them to Loki, Mimir, and Tempo.
+- **`kube-prometheus-crds` & `kube-state-metrics`**: Core monitoring tools that expose cluster-level health and resource metrics.
+- **`grafana-operator`**: Automates the provisioning of Grafana instances and dashboards.
+
+### 2. Networking & Traffic Management
+- **`external-dns`**: Automatically creates and manages DNS records (e.g., in Cloud DNS) for your Ingresses and Services.
+- **`cert-manager`**: Automates the provisioning and renewal of TLS/SSL certificates (e.g., Let's Encrypt).
+- **`istio-base`, `istio-istiod`, `istio-cni`, `istio-ztunnel`**: Core components of the Istio Service Mesh, enabling mTLS, traffic routing, and zero-trust networking.
+- **`gateway-api`**: Modern Kubernetes API for routing traffic, replacing standard Ingress resources.
+
+### 3. Security & Policy
+- **`external-secrets`**: Securely fetches secrets from GCP Secret Manager and creates native Kubernetes Secrets.
+- **`falco`**: Cloud-native runtime security tool that detects anomalous activity in containers.
+- **`trivy-operator`**: Automatically scans container images, config files, and RBAC for vulnerabilities.
+- **`oauth2-proxy`**: Provides authentication (e.g., Google/Microsoft login) for internal dashboards and services.
+
+### 4. GitOps & Delivery
+- **`argo-rollouts`**: Enables advanced deployment strategies like Blue-Green and Canary deployments.
+- **`kargo`**: Multi-stage application lifecycle management (promoting releases across environments).
+- **`reloader`**: Watches for changes in ConfigMaps and Secrets, automatically restarting dependent Pods.
+
+### 5. Infrastructure & Compute
+- **`karpenter`**: Advanced node autoscaler that provisions the exact right-sized VMs for pending pods instantly.
+- **`cloudnative-pg`**: Operator for managing highly available PostgreSQL database clusters inside Kubernetes.
+- **`chaos-mesh`**: Chaos engineering platform for testing system resilience by injecting faults.
+- **`opencost`**: Tracks real-time infrastructure costs for Kubernetes workloads.
+
 ---
 
 ## Progress Log
