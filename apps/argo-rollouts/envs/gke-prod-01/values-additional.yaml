@@ -1,0 +1,40 @@
+# Argo Rollouts controller for Rollout/AnalysisTemplate support in devm.
+installCRDs: true
+
+dashboard:
+  enabled: true
+  readonly: true
+  image:
+    registry: crpinthirdpartymgtintuks001.azurecr.io
+    repository: argoproj/kubectl-argo-rollouts
+    tag: v1.9.0
+  resources:
+    requests:
+      cpu: 15m
+      memory: 100Mi
+    limits:
+      cpu: 15m
+      memory: 100Mi
+  nodeSelector:
+    karpenter.sh/capacity-type: on-demand
+
+providerRBAC:
+  enabled: false
+
+controller:
+  replicas: 1
+  image:
+    registry: crpinthirdpartymgtintuks001.azurecr.io
+    repository: argoproj/argo-rollouts
+    tag: v1.9.0
+  logging:
+    format: json
+  resources:
+    requests:
+      cpu: 15m
+      memory: 100Mi
+    limits:
+      cpu: 15m
+      memory: 100Mi
+  nodeSelector:
+    karpenter.sh/capacity-type: on-demand

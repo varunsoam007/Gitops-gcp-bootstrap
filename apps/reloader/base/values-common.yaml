@@ -1,0 +1,25 @@
+# Shared Reloader configuration
+
+# ACR third-party image
+global:
+  imageRegistry: crpinthirdpartymgtintuks001.azurecr.io
+
+reloader:
+  # Use annotations strategy to work with operator-managed Deployments (e.g., Grafana Operator)
+  # This adds reloader.stakater.com/last-reloaded-from.secret annotation instead of env vars
+  reloadStrategy: annotations
+  
+  # Disable PDB - single replica deployment causes Karpenter disruption deadlocks
+  # Brief downtime during node replacement is acceptable (config reloading is not critical path)
+  podDisruptionBudget:
+    enabled: false
+
+  deployment:
+    resources:
+      requests:
+        cpu: 1m
+        memory: 32Mi
+      limits:
+        memory: 64Mi
+    nodeSelector:
+      karpenter.sh/capacity-type: on-demand
