@@ -23,8 +23,6 @@ spec:
         repoURL: https://github.com/varunsoam007/Gitops-gcp-bootstrap.git
         targetRevision: HEAD
         path: '{{.path.path}}'
-        kustomize:
-          buildOptions: "--load-restrictor LoadRestrictionsNone"
 
       destination:
         server: https://kubernetes.default.svc
