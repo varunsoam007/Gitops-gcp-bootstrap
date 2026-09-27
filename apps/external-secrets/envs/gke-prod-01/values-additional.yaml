@@ -1,5 +1,5 @@
 image:
-  repository: docker.io/external-secrets/external-secrets
+  repository: ghcr.io/external-secrets/external-secrets
 
 # Resources: req==lim (VPA upper: ~128Mi for all components)
 resources:
@@ -35,10 +35,7 @@ webhook:
   nodeSelector:
     kubernetes.io/os: linux
 
-podLabels:
-  azure.workload.identity/use: "true"
-
 serviceAccount:
-  name: external-secrets
+  name: external-secrets-sa
   annotations:
-    azure.workload.identity/client-id: 7539e514-9662-453f-bf3c-d41d421520d0
+    iam.gke.io/gcp-service-account: external-secrets@project-c487c7e3-8780-4424-9ad.iam.gserviceaccount.com
