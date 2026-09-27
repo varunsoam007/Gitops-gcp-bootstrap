@@ -1,0 +1,28 @@
+cronjob:
+  # Run once a day at 2 AM
+  schedule: "0 2 * * *"
+  
+renovate:
+  # Mount the config we provide via a Secret or ConfigMap
+  # For GitHub, we need a personal access token. We will assume 
+  # there is an external secret created for github token.
+  config: |
+    {
+      "platform": "github",
+      "autodiscover": false,
+      "repositories": ["varunsoam007/Gitops-gcp-bootstrap"],
+      "onboarding": false,
+      "requireConfig": "ignored"
+    }
+
+envFrom:
+  - secretRef:
+      name: renovate-env
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 512Mi
+  limits:
+    cpu: 500m
+    memory: 1Gi
