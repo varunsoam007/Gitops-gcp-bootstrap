@@ -28,6 +28,11 @@ In our GCP architecture, we use the **External Secrets Operator (ESO)**.
 - GKE has a built-in **Ingress Controller**. When you deploy a standard Kubernetes `Ingress` resource, GKE automatically provisions a **Google Cloud Application Load Balancer**, provisions TLS, and maps it to your backend Pods dynamically.
 - *Terraform's role* was simply to create the **Proxy-only subnet** (required by Envoy LBs) and reserve a **Static Public IP** for our domain (`jksoam.in`).
 
+### 3. ArgoCD Custom Configurations
+During the deployment of ArgoCD via `--server-side`, we encountered a few issues which required custom configurations:
+- **Kustomize Helm Inflation:** By default, ArgoCD's embedded Kustomize engine blocks Helm rendering (`helmCharts` in `kustomization.yaml`) for security reasons. To fix this, we patched the `argocd-cm` ConfigMap to include `kustomize.buildOptions: "--enable-helm"`.
+- **RBAC API Group Errors:** Modern GKE versions introduce several custom API groups (like `autoscaling.x-k8s.io` and `resource.k8s.io`). The default ArgoCD ClusterRole failed to list these, causing applications to get stuck in a "Deleting" or "Unknown" state (ComparisonErrors). To permanently fix this, we created a `ClusterRoleBinding` granting `cluster-admin` to the `argocd-application-controller` service account.
+
 ---
 
 ## Progress Log
