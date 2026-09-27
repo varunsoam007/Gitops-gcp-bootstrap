@@ -3,7 +3,7 @@
 
 # Private ACR for images
 image:
-  registry: crpinthirdpartymgtintuks001.azurecr.io
+  registry: docker.io
   repository: kube-state-metrics/kube-state-metrics
 
 # Enable ServiceMonitor for Alloy discovery
@@ -16,8 +16,8 @@ prometheus:
 
 # Pin to stable AKS system-pool nodes (survives default pool rotation)
 nodeSelector:
-  kubernetes.azure.com/mode: system
-  kubernetes.azure.com/priority: regular
+  
+  
 
 # System pool nodes carry the CriticalAddonsOnly taint; tolerate it to schedule
 tolerations:

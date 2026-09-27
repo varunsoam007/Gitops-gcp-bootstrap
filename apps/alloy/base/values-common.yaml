@@ -3,12 +3,12 @@
 
 # Private ACR for all images
 image:
-  registry: crpinthirdpartymgtintuks001.azurecr.io
+  registry: docker.io
   repository: grafana/alloy
 
 configReloader:
   image:
-    registry: crpinthirdpartymgtintuks001.azurecr.io
+    registry: docker.io
     repository: prometheus-operator/prometheus-config-reloader
 
 # High priority for observability workloads

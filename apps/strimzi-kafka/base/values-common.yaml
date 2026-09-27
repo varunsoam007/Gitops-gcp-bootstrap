@@ -6,5 +6,5 @@ watchNamespaces:
   - strimzi-kafka
 
 # Use the private third-party ACR pull-through cache.
-defaultImageRegistry: crpinthirdpartymgtintuks001.azurecr.io
+defaultImageRegistry: docker.io
 defaultImageRepository: strimzi

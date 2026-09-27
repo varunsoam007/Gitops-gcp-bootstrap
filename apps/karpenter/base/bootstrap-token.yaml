@@ -13,7 +13,7 @@ spec:
           restartPolicy: OnFailure
           containers:
           - name: generate-bootstrap-token
-            image: crpinthirdpartymgtintuks001.azurecr.io/alpine/kubectl:latest
+            image: docker.io/alpine/kubectl:latest
             command:
               - /bin/sh
               - -c

@@ -4,7 +4,7 @@ fullnameOverride: platform-auth
 
 # Private ACR - mirrors upstream oauth2-proxy image
 image:
-  registry: crpinthirdpartymgtintuks001.azurecr.io
+  registry: docker.io
   repository: oauth2-proxy/oauth2-proxy
   tag: "v7.15.1"
 

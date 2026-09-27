@@ -2,7 +2,7 @@
 
 # ACR third-party image
 global:
-  imageRegistry: crpinthirdpartymgtintuks001.azurecr.io
+  imageRegistry: docker.io
 
 reloader:
   # Use annotations strategy to work with operator-managed Deployments (e.g., Grafana Operator)

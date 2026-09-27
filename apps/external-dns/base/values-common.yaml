@@ -2,7 +2,7 @@
 
 # ACR third-party image
 image:
-  repository: crpinthirdpartymgtintuks001.azurecr.io/external-dns/external-dns
+  repository: docker.io/external-dns/external-dns
 
 replicaCount: 2
 

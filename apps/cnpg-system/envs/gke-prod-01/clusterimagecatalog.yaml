@@ -7,8 +7,8 @@ metadata:
 spec:
   images:
     - image: >-
-        crpinthirdpartymgtintuks001.azurecr.io/cloudnative-pg/postgresql:16.13-202602261637-system-bookworm
+        docker.io/cloudnative-pg/postgresql:16.13-202602261637-system-bookworm
       major: 16
     - image: >-
-        crpinthirdpartymgtintuks001.azurecr.io/cloudnative-pg/postgresql:17.9-202602261636-system-bookworm
+        docker.io/cloudnative-pg/postgresql:17.9-202602261636-system-bookworm
       major: 17

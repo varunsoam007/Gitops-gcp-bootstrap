@@ -22,7 +22,7 @@ spec:
     spec:
       containers:
         - name: prometheus-msteams
-          image: crpinthirdpartymgtintuks001.azurecr.io/prometheusmsteams/prometheus-msteams:v1.5.4
+          image: docker.io/prometheusmsteams/prometheus-msteams:v1.5.4
           args:
             - "-workflow-webhook"
             - "-teams-request-uri=alertmanager"

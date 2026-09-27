@@ -3,7 +3,7 @@ kind: StorageClass
 metadata:
   name: postgresql-premiumv2
 # Using in-tree provisioner for backward compatibility with existing PVs
-# Future clusters should use disk.csi.azure.com with IOPS/throughput settings
+# Future clusters should use pd.csi.storage.gke.io with IOPS/throughput settings
 provisioner: kubernetes.io/azure-disk
 parameters:
   kind: Managed

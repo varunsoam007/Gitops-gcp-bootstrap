@@ -8,10 +8,10 @@ metadata:
     app.kubernetes.io/component: plugins
 data:
   # ACR registry for plugin artifacts
-  registry: "crpinthirdpartymgtintuks001.azurecr.io"
+  registry: "docker.io"
   
   # Infinity Datasource Plugin
   # Docs: https://grafana.com/grafana/plugins/yesoreyeram-infinity-datasource/
   # Source: https://github.com/yesoreyeram/grafana-infinity-datasource/releases
   infinity.version: "2.10.0"
-  infinity.image: "crpinthirdpartymgtintuks001.azurecr.io/grafana-plugins/yesoreyeram-infinity-datasource:2.10.0"
+  infinity.image: "docker.io/grafana-plugins/yesoreyeram-infinity-datasource:2.10.0"

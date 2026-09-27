@@ -6,7 +6,7 @@ replicaCount: 1
 
 # Private ACR image
 image:
-  repository: crpinthirdpartymgtintuks001.azurecr.io/dragonflydb/dragonfly
+  repository: docker.io/dragonflydb/dragonfly
 
 # Memory limit for cache mode
 extraArgs:

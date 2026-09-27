@@ -3,7 +3,7 @@ kind: StorageClass
 metadata:
   name: postgresql-premiumv2
 # mgt-k01 uses CSI driver with explicit IOPS/throughput settings
-provisioner: disk.csi.azure.com
+provisioner: pd.csi.storage.gke.io
 parameters:
   $patch: replace
   skuName: PremiumV2_LRS

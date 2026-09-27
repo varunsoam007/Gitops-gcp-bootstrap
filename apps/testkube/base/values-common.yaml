@@ -1,5 +1,5 @@
 # Shared Testkube configuration for all environments
-# ACR: crpinthirdpartymgtintuks001.azurecr.io
+# ACR: docker.io
 
 # Disable cloud/SaaS mode — fully self-hosted OSS
 testkube-api:
@@ -21,14 +21,14 @@ testkube-api:
       memory: 256Mi
   # ACR image overrides
   image:
-    registry: crpinthirdpartymgtintuks001.azurecr.io
+    registry: docker.io
   imageTwToolkit:
-    registry: crpinthirdpartymgtintuks001.azurecr.io
+    registry: docker.io
   imageTwInit:
-    registry: crpinthirdpartymgtintuks001.azurecr.io
+    registry: docker.io
   minio:
     image:
-      registry: crpinthirdpartymgtintuks001.azurecr.io
+      registry: docker.io
 
 # NATS images — nats-server-config-reloader is in ACR
 # NOTE: the main NATS server image (nats:2.10.9-alpine) must also be imported:
@@ -37,10 +37,10 @@ testkube-api:
 nats:
   container:
     image:
-      registry: crpinthirdpartymgtintuks001.azurecr.io
+      registry: docker.io
   reloader:
     image:
-      registry: crpinthirdpartymgtintuks001.azurecr.io
+      registry: docker.io
 
 testkube-operator:
   resources:
@@ -51,30 +51,30 @@ testkube-operator:
       memory: 128Mi
   # ACR image overrides
   image:
-    registry: crpinthirdpartymgtintuks001.azurecr.io
+    registry: docker.io
   # kube-rbac-proxy: imported as gcrioimages/kubebuilder-kube-rbac-proxy (different repo path in ACR)
   proxy:
     image:
-      registry: crpinthirdpartymgtintuks001.azurecr.io
+      registry: docker.io
       repository: gcrioimages/kubebuilder-kube-rbac-proxy
   webhook:
     migrate:
       image:
-        registry: crpinthirdpartymgtintuks001.azurecr.io
+        registry: docker.io
     # kube-webhook-certgen: imported without namespace prefix in ACR
     patch:
       image:
-        registry: crpinthirdpartymgtintuks001.azurecr.io
+        registry: docker.io
         repository: kube-webhook-certgen
   preUpgrade:
     image:
-      registry: crpinthirdpartymgtintuks001.azurecr.io
+      registry: docker.io
       repository: bitnami/kubectl
       tag: "sha256-393c457f5c410507a7718d7468d19fe53b4189ab06798df759605fb4aa22e474"
 
 # testkube-logs is disabled by default (logsV2: false) but override for when enabled
 testkube-logs:
   image:
-    registry: crpinthirdpartymgtintuks001.azurecr.io
+    registry: docker.io
 
 

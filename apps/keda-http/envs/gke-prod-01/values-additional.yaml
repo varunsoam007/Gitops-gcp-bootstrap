@@ -3,9 +3,9 @@
 
 # Mirror upstream ghcr.io images through the third-party ACR pull-through cache.
 images:
-  operator: crpinthirdpartymgtintuks001.azurecr.io/kedacore/http-add-on-operator
-  interceptor: crpinthirdpartymgtintuks001.azurecr.io/kedacore/http-add-on-interceptor
-  scaler: crpinthirdpartymgtintuks001.azurecr.io/kedacore/http-add-on-scaler
+  operator: docker.io/kedacore/http-add-on-operator
+  interceptor: docker.io/kedacore/http-add-on-interceptor
+  scaler: docker.io/kedacore/http-add-on-scaler
 
 operator:
   replicas: 1

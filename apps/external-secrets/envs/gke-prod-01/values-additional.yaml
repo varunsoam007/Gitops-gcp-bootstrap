@@ -1,5 +1,5 @@
 image:
-  repository: crpinthirdpartymgtintuks001.azurecr.io/external-secrets/external-secrets
+  repository: docker.io/external-secrets/external-secrets
 
 # Resources: req==lim (VPA upper: ~128Mi for all components)
 resources:

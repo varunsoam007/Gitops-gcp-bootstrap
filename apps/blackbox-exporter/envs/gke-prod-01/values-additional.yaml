@@ -6,7 +6,7 @@ fullnameOverride: blackbox-exporter
 
 # Private ACR for images
 image:
-  registry: crpinthirdpartymgtintuks001.azurecr.io
+  registry: docker.io
   repository: prometheus/blackbox-exporter
 
 # Use Deployment (not DaemonSet)

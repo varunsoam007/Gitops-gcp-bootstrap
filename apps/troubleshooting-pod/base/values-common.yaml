@@ -12,7 +12,7 @@ rbac:
   name: netshoot
 
   image:
-    repository: crpinthirdpartymgtintuks001.azurecr.io/nicolaka/netshoot
+    repository: docker.io/nicolaka/netshoot
     tag: v0.15
     pullPolicy: IfNotPresent
 

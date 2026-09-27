@@ -1,7 +1,7 @@
 # Environment: devm-k01 - Development cluster
 
 image:
-  repository: crpinthirdpartymgtintuks001.azurecr.io/grafana/mimir
+  repository: docker.io/grafana/mimir
   tag: "3.2.0"
 
 # ServiceAccount with workload identity for Azure authentication

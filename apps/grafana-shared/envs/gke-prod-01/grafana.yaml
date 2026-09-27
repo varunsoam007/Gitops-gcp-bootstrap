@@ -34,7 +34,7 @@ spec:
           # Uses Azure Workload Identity to authenticate to ACR
           initContainers:
             - name: load-plugins
-              image: crpinthirdpartymgtintuks001.azurecr.io/oras-project/oras:v1.2.2
+              image: docker.io/oras-project/oras:v1.2.2
               command:
                 - sh
                 - -c
@@ -91,7 +91,7 @@ spec:
                 - name: AZURE_FEDERATED_TOKEN_FILE
                   value: "/var/run/secrets/tokens/azure-identity-token"
                 - name: ACR_REGISTRY
-                  value: "crpinthirdpartymgtintuks001.azurecr.io"
+                  value: "docker.io"
               volumeMounts:
                 - name: grafana-plugins
                   mountPath: /plugins

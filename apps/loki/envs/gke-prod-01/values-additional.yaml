@@ -16,7 +16,7 @@
 # Private ACR for devm cluster
 loki:
   image:
-    registry: crpinthirdpartymgtintuks001.azurecr.io
+    registry: docker.io
     repository: grafana/loki
     tag: "3.6.5"
 
@@ -223,7 +223,7 @@ gateway:
   enabled: true
   replicas: 1
   image:
-    registry: crpinthirdpartymgtintuks001.azurecr.io
+    registry: docker.io
     repository: nginxinc/nginx-unprivileged
   nodeSelector:
     karpenter.sh/capacity-type: on-demand
@@ -239,7 +239,7 @@ gateway:
 lokiCanary:
   enabled: true
   image:
-    registry: crpinthirdpartymgtintuks001.azurecr.io
+    registry: docker.io
     repository: grafana/loki-canary
   resources:
     requests:

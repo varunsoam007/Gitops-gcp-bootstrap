@@ -1,3 +1,3 @@
 # ACR third-party image
 image:
-  repository: crpinthirdpartymgtintuks001.azurecr.io/emberstack/kubernetes-reflector
+  repository: docker.io/emberstack/kubernetes-reflector
