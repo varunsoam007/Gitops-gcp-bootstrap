@@ -1,0 +1,28 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: external-dns
+
+resources:
+  - namespace.yaml
+
+helmCharts:
+  - name: external-dns
+    repo: https://kubernetes-sigs.github.io/external-dns/
+    releaseName: external-dns
+    version: 1.14.3
+    namespace: external-dns
+    valuesInline:
+      provider: google
+      google:
+        project: "shared-service-509706" # The Host Project where our DNS zone jksoam.in resides
+      serviceAccount:
+        create: true
+        name: external-dns
+        annotations:
+          # Binds this Kubernetes SA to our GCP Service Account via Workload Identity
+          iam.gke.io/gcp-service-account: "external-dns@project-c487c7e3-8780-4424-9ad.iam.gserviceaccount.com"
+      # Extra arguments to external-dns
+      extraArgs:
+        - --registry=txt
+        - --txt-owner-id=gke-cluster-owner
+        - --domain-filter=jksoam.in

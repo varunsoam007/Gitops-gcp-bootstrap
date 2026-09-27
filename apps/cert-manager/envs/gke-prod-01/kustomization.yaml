@@ -1,0 +1,22 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: cert-manager
+
+resources:
+  - namespace.yaml
+  - cluster-issuer.yaml
+
+helmCharts:
+  - name: cert-manager
+    repo: https://charts.jetstack.io
+    releaseName: cert-manager
+    version: v1.14.4
+    namespace: cert-manager
+    valuesInline:
+      installCRDs: true
+      serviceAccount:
+        create: true
+        name: cert-manager
+        annotations:
+          # Binds this Kubernetes SA to our GCP Service Account via Workload Identity
+          iam.gke.io/gcp-service-account: "cert-manager@project-c487c7e3-8780-4424-9ad.iam.gserviceaccount.com"
