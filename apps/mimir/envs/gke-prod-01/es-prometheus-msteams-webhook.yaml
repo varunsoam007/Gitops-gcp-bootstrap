@@ -11,7 +11,7 @@ spec:
   refreshInterval: 1h
   secretStoreRef:
     kind: SecretStore
-    name: kv-pin-aks-devm-int-uks
+    name: gcp-store
 
   target:
     name: prometheus-msteams-webhook

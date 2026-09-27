@@ -8,7 +8,7 @@ resources:
   - dashboard-testkube-postgres.yaml
   - httproute.yaml
   - grafana.yaml
-  - ss-kv-pin-aks-devm-int-uks.yaml
+  - ss-gcp-store.yaml
 
 # Patch Loki datasource with devm-k01 tenant ID
 patches:
