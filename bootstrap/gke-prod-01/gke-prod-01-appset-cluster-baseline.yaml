@@ -1,0 +1,57 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: gke-prod-01-cluster-baseline
+  namespace: argo-cd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+  - git:
+      repoURL: https://github.com/varunsoam007/Gitops-gcp-bootstrap.git
+      revision: HEAD
+      directories:
+      - path: apps/*/envs/gke-prod-01
+  template:
+    metadata:
+      # This generates a name like 'gke-prod-01-external-secrets'
+      name: '{{index .path.segments 3}}-{{index .path.segments 1}}'
+    spec:
+      project: default
+
+      source:
+        repoURL: https://github.com/varunsoam007/Gitops-gcp-bootstrap.git
+        targetRevision: HEAD
+        path: '{{.path.path}}'
+
+      destination:
+        server: https://kubernetes.default.svc
+        # The namespace is dynamically extracted from the app folder name (e.g., 'external-secrets')
+        namespace: '{{index .path.segments 1}}'
+
+      syncPolicy:
+        syncOptions:
+          - CreateNamespace=true
+        automated:
+          prune: true
+          selfHeal: true
+      
+      revisionHistoryLimit: 2
+
+#=============================================================================
+# Ignore mutating changes injected by GKE and standard webhooks
+#=============================================================================
+      ignoreDifferences:
+      # Ignore standard Cert-Manager webhook injections
+      - group: admissionregistration.k8s.io
+        kind: ValidatingWebhookConfiguration
+        name: cert-manager-webhook
+        jsonPointers:
+        - /webhooks/0/namespaceSelector
+        - /webhooks/0/objectSelector
+      
+      # Ignore dynamic GKE native annotations (if any are automatically added)
+      - group: apps
+        kind: Deployment
+        jsonPointers:
+        - /spec/template/metadata/annotations/seccomp.security.alpha.kubernetes.io~1pod
